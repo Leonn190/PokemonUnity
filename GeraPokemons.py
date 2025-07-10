@@ -19,18 +19,18 @@ def Gerar():
 
     info_serializavel = pokemon.iloc[0].to_dict()
 
-    if random.randint(1, 11) > info_serializavel['Raridade']:
+    if random.randint(1, 11) > int(info_serializavel['Raridade']):
         X = random.randint(1, 2000)
         Y = random.randint(1, 2000)
         info_serializavel["Nivel"] = int(random.betavariate(2, 5) * 50)
 
-        if info_serializavel["Estagio"] == 0:
+        if int(info_serializavel["Estagio"]) == 0:
             P = 1.2
-        elif info_serializavel["Estagio"] == 1:
+        elif int(info_serializavel["Estagio"]) == 1:
             P = 1.05
-        elif info_serializavel["Estagio"] == 2:
+        elif int(info_serializavel["Estagio"]) == 2:
             P = 0.9
-        elif info_serializavel["Estagio"] == 3:
+        elif int(info_serializavel["Estagio"]) == 3:
             P = 0.7
         else:
             P = 1
@@ -43,12 +43,12 @@ def Gerar():
             valor = min(valor, int(base * fator_max))
             return valor, vmin, vmax
 
-        atributos = ["vida", "atk", "def", "SpA", "SpD", "Vel",
+        atributos = ["vida", "Atk", "Def", "SpA", "SpD", "Vel",
                      "Mag", "Per", "Ene", "EnR", "CrD", "CrC"]
 
         ivs = []
         for atributo in atributos:
-            base = info_serializavel[atributo]
+            base = int(info_serializavel[atributo])
             valor, minimo, maximo = gerar_valor(base, 0.75, 1.25, P)
             iv = ((valor - minimo) / (maximo - minimo)) * 100
             if atributo not in ["CrD", "CrC"]:
@@ -60,8 +60,8 @@ def Gerar():
         info_serializavel["IV"] = IV
 
         soma_atributos = sum([
-            info_serializavel["atk"],
-            info_serializavel["def"],
+            info_serializavel["Atk"],
+            info_serializavel["Def"],
             info_serializavel["SpA"],
             info_serializavel["SpD"],
             info_serializavel["Vel"],
@@ -75,7 +75,7 @@ def Gerar():
 
         total = (
             soma_atributos * 2 +
-            info_serializavel["vida"] +
+            info_serializavel["Vida"] +
             info_serializavel.get("Sinergia", 0) * 10 +
             (info_serializavel.get("Habilidades", 0) + info_serializavel.get("Equipaveis", 0)) * 20
         )
