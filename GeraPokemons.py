@@ -5,7 +5,7 @@ import pandas as pd
 
 df = pd.read_csv("Pokemons.csv")
 
-pokemons_bp = Blueprint('conta', __name__)
+pokemons_bp = Blueprint('pokemons', __name__)
 
 pokemons_ativos = []
 
