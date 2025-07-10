@@ -43,7 +43,7 @@ def Gerar():
             valor = min(valor, int(base * fator_max))
             return valor, vmin, vmax
 
-        atributos = ["vida", "Atk", "Def", "SpA", "SpD", "Vel",
+        atributos = ["Vida", "Atk", "Def", "SpA", "SpD", "Vel",
                      "Mag", "Per", "Ene", "EnR", "CrD", "CrC"]
 
         ivs = []
