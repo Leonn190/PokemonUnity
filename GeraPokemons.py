@@ -11,15 +11,17 @@ pokemons_ativos = []
 
 @pokemons_bp.route('/Gerar', methods=['POST'])
 def Gerar():
-
-    code = random.randint(1,1300)
-
+    code = random.randint(1, 1300)
     pokemon = df[df["Code"] == code]
 
-    if  random.randint(1,11) > pokemon.iloc[0]['Raridade']:
-        X = random.randint(1,2000)
-        Y = random.randint(1,2000)
-        info_serializavel = pokemon.iloc[0].to_dict()
+    if pokemon.empty:
+        return jsonify({"status": "erro", "mensagem": "Código não encontrado no CSV"}), 400
+
+    info_serializavel = pokemon.iloc[0].to_dict()
+
+    if random.randint(1, 11) > info_serializavel['Raridade']:
+        X = random.randint(1, 2000)
+        Y = random.randint(1, 2000)
         info_serializavel["Nivel"] = int(random.betavariate(2, 5) * 50)
 
         if info_serializavel["Estagio"] == 0:
@@ -33,8 +35,6 @@ def Gerar():
         else:
             P = 1
 
-        Pok = info_serializavel
-
         def gerar_valor(base, fator_min, fator_max, P):
             vmin = int(base * fator_min)
             vmax = int(base * fator_max)
@@ -44,24 +44,21 @@ def Gerar():
             return valor, vmin, vmax
 
         atributos = ["vida", "atk", "def", "SpA", "SpD", "Vel",
-                    "Mag", "Per", "Ene", "EnR", "CrD", "CrC"]
+                     "Mag", "Per", "Ene", "EnR", "CrD", "CrC"]
 
         ivs = []
         for atributo in atributos:
-            base = Pok[atributo]
+            base = info_serializavel[atributo]
             valor, minimo, maximo = gerar_valor(base, 0.75, 1.25, P)
             iv = ((valor - minimo) / (maximo - minimo)) * 100
-            if atributo == "CrD" or atributo == "CrC":
-                pass
-            else:
+            if atributo not in ["CrD", "CrC"]:
                 valor = valor * (1 + (info_serializavel["Nivel"] * 0.01))
             ivs.append(iv)
 
         IV = round(sum(ivs) / len(ivs), 2)
-
         info_serializavel["ivs"] = ivs
         info_serializavel["IV"] = IV
-        # Soma dos atributos de Atk a CrC (12 atributos)
+
         soma_atributos = sum([
             info_serializavel["atk"],
             info_serializavel["def"],
@@ -87,14 +84,20 @@ def Gerar():
 
         PokemonAtivo = {
             "info": info_serializavel,
-            "loc": [X,Y]
+            "loc": [X, Y]
         }
-        pokemons_ativos.append(PokemonAtivo)
-    else:
-        pass
 
-    if random.randint(10,60) < len(pokemons_ativos):
-        pokemons_ativos.pop(random.randint(0,len(pokemons_ativos)))
+        pokemons_ativos.append(PokemonAtivo)
+
+        # Limpeza aleatória se tiver muitos
+        if random.randint(10, 60) < len(pokemons_ativos):
+            pokemons_ativos.pop(random.randint(0, len(pokemons_ativos)-1))
+
+        return jsonify({"status": "ok", "mensagem": "Pokémon gerado com sucesso"})
+    else:
+        return jsonify({"status": "ok", "mensagem": "Nada gerado (Raridade)"})
+
+
 
 @pokemons_bp.route('/Verificar', methods=['POST'])
 def Verificar():
@@ -102,8 +105,7 @@ def Verificar():
     posX = data["X"]
     posY = data["Y"]
 
-    raio = 200  # distância máxima para considerar um Pokémon "próximo"
-
+    raio = 200
     pokemons_proximos = []
 
     for pokemon in pokemons_ativos:
@@ -114,4 +116,3 @@ def Verificar():
             pokemons_proximos.append(pokemon)
 
     return jsonify(pokemons_proximos)
-
