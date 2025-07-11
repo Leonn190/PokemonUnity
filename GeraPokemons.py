@@ -20,7 +20,7 @@ def Gerar():
     info_serializavel = pokemon.iloc[0].to_dict()
 
     if info_serializavel['Raridade'] == "-":
-        return jsonify({"status": "ok", "mensagem": "Nada gerado (Raridade)", "TentouGerar": info_serializavel['Nome']})
+        return jsonify({"status": "ok", "mensagem": "Nada gerado (proibição)", "TentouGerar": info_serializavel['Nome']})
 
     if random.randint(1, 11) > int(info_serializavel['Raridade']):
         X = random.randint(1, 2000)
