@@ -21,29 +21,31 @@ def iniciar_loop_geracao():
 
     Rodando = True
 
-    def loop():
+    def loop_geracao():
         global Rodando
+        if not players_ativos:
+            Rodando = False
+            return
 
-        while True:
-            ativos = [p for p in players_ativos.values() if p["atividade"] > 0]
+        for code in list(players_ativos.keys()):
+            player = players_ativos[code]
+            player["atividade"] -= 1
 
-            if not ativos:
-                Rodando = False
-                break  # Encerra o loop se ninguém estiver ativo
+            if player["atividade"] <= 0:
+                del players_ativos[code]
+                continue
 
-            for player in ativos:
-                player["atividade"] -= 1
-                Gerado = gerar_pokemon_para_player(player["loc"],players_ativos)
-                if Gerado is not False:
-                    pokemons_ativos.append(Gerado)  # Função auxiliar com a posição do player
-            
-                # Limpeza aleatória
-            if random.randint(15, 70) < len(pokemons_ativos):
+            Gerado = gerar_pokemon_para_player(player["loc"], players_ativos)
+            if Gerado:
+                pokemons_ativos.append(Gerado)
+
+            # Limpeza aleatória
+            if pokemons_ativos and random.randint(15, 70) < len(pokemons_ativos):
                 pokemons_ativos.pop(random.randint(0, len(pokemons_ativos) - 1))
 
             time.sleep(0.2)  # 5 vezes por segundo
 
-    threading.Thread(target=loop, daemon=True).start()
+    threading.Thread(target=loop_geracao, daemon=True).start()
 
 # Essa rota continua recebendo os dados do player
 @pokemons_bp.route('/Verificar', methods=['POST'])
