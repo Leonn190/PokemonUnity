@@ -74,4 +74,4 @@ def Verificar():
         if distancia <= raio:
             pokemons_proximos.append(pokemon)
 
-    return jsonify({"pokemons": pokemons_proximos})
+    return jsonify({"pokemons": pokemons_proximos, "Ativos": pokemons_ativos})
