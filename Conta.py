@@ -57,3 +57,4 @@ def sair_conta():
         return jsonify({'mensagem': 'Conta desconectada', 'ativos': Ativos}), 200
     else:
         return jsonify({'mensagem': 'Conta não estava ativa'}), 202
+    

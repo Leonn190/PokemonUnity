@@ -1,7 +1,7 @@
 from flask import Flask
 from flask_cors import CORS
 from Conta import conta_bp
-from GeraPokemons import pokemons_bp
+from Ativador import pokemons_bp
 
 app = Flask(__name__)
 CORS(app)

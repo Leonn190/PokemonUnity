@@ -1,30 +1,51 @@
-from flask import Blueprint, request, jsonify
 import random
 import math
 import pandas as pd
-
 df = pd.read_csv("Pokemons.csv")
 
-pokemons_bp = Blueprint('pokemons', __name__)
-
-pokemons_ativos = []
-
-@pokemons_bp.route('/Gerar', methods=['POST'])
-def Gerar():
+# Essa função será chamada para cada jogador ativo, com a posição
+def gerar_pokemon_para_player(loc,players_ativos):
     code = random.randint(1, 1100)
     pokemon = df[df["Code"] == code]
 
     if pokemon.empty:
-        return jsonify({"status": "erro", "mensagem": "Código não encontrado no CSV"}), 400
+        return
 
     info_serializavel = pokemon.iloc[0].to_dict()
 
     if info_serializavel['Raridade'] == "-":
-        return jsonify({"status": "ok", "mensagem": "Nada gerado (proibição)", "TentouGerar": info_serializavel['Nome']})
+        return
 
     if random.randint(1, 11) > int(info_serializavel['Raridade']):
-        X = random.randint(1, 2000)
-        Y = random.randint(1, 2000)
+        
+        MAX_TENTATIVAS = 20
+        for _ in range(MAX_TENTATIVAS):
+            # Gera ângulo e distância aleatória no intervalo [36, 66]
+            angulo = random.uniform(0, 2 * math.pi)
+            distancia = random.uniform(36, 66)
+
+            dx = math.cos(angulo) * distancia
+            dy = math.sin(angulo) * distancia
+
+            X = int(loc[0] + dx)
+            Y = int(loc[1] + dy)
+
+            # Verifica se essa posição está fora do raio proibido de outros players
+            pos_valida = True
+            for other_code, other_data in players_ativos.items():
+                if other_data["loc"] != loc:  # Ignora o próprio player
+                    ox, oy = other_data["loc"]
+                    distancia_entre = math.sqrt((X - ox) ** 2 + (Y - oy) ** 2)
+                    if distancia_entre < 36:
+                        pos_valida = False
+                        break
+
+            if pos_valida:
+                break
+        else:
+            # Se não achou nenhuma posição válida
+            return
+        
         info_serializavel["Nivel"] = int(random.betavariate(2, 5) * 50)
 
         if int(info_serializavel["Estagio"]) == 0:
@@ -90,32 +111,4 @@ def Gerar():
             "loc": [X, Y]
         }
 
-        pokemons_ativos.append(PokemonAtivo)
-
-        # Limpeza aleatória se tiver muitos
-        if random.randint(10, 60) < len(pokemons_ativos):
-            pokemons_ativos.pop(random.randint(0, len(pokemons_ativos)-1))
-
-        return jsonify({"status": "ok", "mensagem": "Pokémon gerado com sucesso", "Pokemon": info_serializavel['Nome'], "loc": PokemonAtivo["loc"]})
-    else:
-        return jsonify({"status": "ok", "mensagem": "Nada gerado (Raridade)", "TentouGerar": info_serializavel['Nome']})
-
-
-
-@pokemons_bp.route('/Verificar', methods=['POST'])
-def Verificar():
-    data = request.get_json()
-    posX = data["X"]
-    posY = data["Y"]
-
-    raio = 350
-    pokemons_proximos = []
-
-    for pokemon in pokemons_ativos:
-        px, py = pokemon["loc"]
-        distancia = math.sqrt((px - posX)**2 + (py - posY)**2)
-
-        if distancia <= raio:
-            pokemons_proximos.append(pokemon)
-
-    return jsonify({"pokemons": pokemons_proximos})
+        return PokemonAtivo
