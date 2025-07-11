@@ -9,12 +9,12 @@ def gerar_pokemon_para_player(loc,players_ativos):
     pokemon = df[df["Code"] == code]
 
     if pokemon.empty:
-        return
+        return False
 
     info_serializavel = pokemon.iloc[0].to_dict()
 
     if info_serializavel['Raridade'] == "-":
-        return
+        return False
 
     if random.randint(1, 11) > int(info_serializavel['Raridade']):
         
@@ -44,7 +44,7 @@ def gerar_pokemon_para_player(loc,players_ativos):
                 break
         else:
             # Se não achou nenhuma posição válida
-            return
+            return False
         
         info_serializavel["Nivel"] = int(random.betavariate(2, 5) * 50)
 

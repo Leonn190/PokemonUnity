@@ -34,7 +34,7 @@ def iniciar_loop_geracao():
             for player in ativos:
                 player["atividade"] -= 1
                 Gerado = gerar_pokemon_para_player(player["loc"],players_ativos)
-                if Gerado != 0:
+                if Gerado is not False:
                     pokemons_ativos.append(Gerado)  # Função auxiliar com a posição do player
             
                 # Limpeza aleatória
