@@ -11,7 +11,7 @@ pokemons_ativos = []
 
 @pokemons_bp.route('/Gerar', methods=['POST'])
 def Gerar():
-    code = random.randint(1, 1300)
+    code = random.randint(1, 1100)
     pokemon = df[df["Code"] == code]
 
     if pokemon.empty:
@@ -108,7 +108,7 @@ def Verificar():
     posX = data["X"]
     posY = data["Y"]
 
-    raio = 200
+    raio = 350
     pokemons_proximos = []
 
     for pokemon in pokemons_ativos:
