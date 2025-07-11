@@ -96,6 +96,7 @@ def gerar_pokemon_para_player(loc,players_ativos):
         )
 
         info_serializavel["Total"] = int(total)
+        info_serializavel["nome"] = info_serializavel.get("Nome", "")
 
         PokemonAtivo = {
             "info": info_serializavel,
