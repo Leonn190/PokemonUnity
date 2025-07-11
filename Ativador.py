@@ -14,64 +14,75 @@ pokemons_ativos = []
 players_ativos = {}
 Rodando = False  # Flag global para controlar o loop
 
+lock = threading.Lock()
+
 def iniciar_loop_geracao():
     global Rodando
     if Rodando:
-        return  # Já está rodando, não inicie outro
-
+        return
     Rodando = True
 
     def loop_geracao():
         global Rodando
-        if not players_ativos:
-            Rodando = False
-            return
+        while True:
+            with lock:
+                if not players_ativos:
+                    Rodando = False
+                    break
 
-        for code in list(players_ativos.keys()):
-            player = players_ativos[code]
-            player["atividade"] -= 1
+                for code in list(players_ativos.keys()):
+                    player = players_ativos[code]
+                    player["atividade"] -= 1
 
-            if player["atividade"] <= 0:
-                del players_ativos[code]
-                continue
+                    if player["atividade"] <= 0:
+                        del players_ativos[code]
+                        continue
 
-            Gerado = gerar_pokemon_para_player(player["loc"], players_ativos)
-            if Gerado:
-                pokemons_ativos.append(Gerado)
+                    Gerado = gerar_pokemon_para_player(player["loc"], players_ativos)
+                    if Gerado:
+                        pokemons_ativos.append(Gerado)
 
-            # Limpeza aleatória
-            if pokemons_ativos and random.randint(15, 70) < len(pokemons_ativos):
-                pokemons_ativos.pop(random.randint(0, len(pokemons_ativos) - 1))
+                if pokemons_ativos and random.randint(15, 70) < len(pokemons_ativos):
+                    pokemons_ativos.pop(random.randint(0, len(pokemons_ativos) - 1))
 
-            time.sleep(0.2)  # 5 vezes por segundo
+            time.sleep(0.2)
 
     threading.Thread(target=loop_geracao, daemon=True).start()
 
-# Essa rota continua recebendo os dados do player
 @pokemons_bp.route('/Verificar', methods=['POST'])
 def Verificar():
     data = request.get_json()
     posX = data["X"]
     posY = data["Y"]
-    code = data["Code"]
+    code = str(data["Code"])
 
-    players_ativos[code] = {
-        "loc": [posX, posY],
-        "code": code,
-        "atividade": 100
-    }
+    with lock:
+        players_ativos[code] = {
+            "loc": [posX, posY],
+            "code": code,
+            "atividade": 100
+        }
 
-    # Inicia o loop de geração se ainda não estiver rodando
     iniciar_loop_geracao()
 
     raio = 70
     pokemons_proximos = []
 
-    for pokemon in pokemons_ativos:
-        px, py = pokemon["loc"]
-        distancia = math.sqrt((px - posX) ** 2 + (py - posY) ** 2)
+    with lock:
+        for pokemon in pokemons_ativos:
+            if not pokemon or not pokemon.get("loc"):
+                continue
+            px, py = pokemon["loc"]
+            distancia = math.sqrt((px - posX) ** 2 + (py - posY) ** 2)
+            if distancia <= raio:
+                pokemons_proximos.append(pokemon)
 
-        if distancia <= raio:
-            pokemons_proximos.append(pokemon)
+        # 👇 Força a geração de Pokémon na chamada
+        Gerado = gerar_pokemon_para_player([posX, posY], players_ativos)
+        if Gerado:
+            pokemons_ativos.append(Gerado)
 
-    return jsonify({"pokemons": pokemons_proximos, "Ativos": pokemons_ativos})
+    return jsonify({
+        "pokemons": pokemons_proximos,
+        "Ativos": pokemons_ativos
+    })

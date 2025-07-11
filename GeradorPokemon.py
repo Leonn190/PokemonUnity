@@ -18,7 +18,7 @@ def gerar_pokemon_para_player(loc,players_ativos):
 
     if random.randint(1, 11) > int(info_serializavel['Raridade']):
         
-        MAX_TENTATIVAS = 20
+        MAX_TENTATIVAS = 30
         for _ in range(MAX_TENTATIVAS):
             # Gera ângulo e distância aleatória no intervalo [36, 66]
             angulo = random.uniform(0, 2 * math.pi)
@@ -48,16 +48,7 @@ def gerar_pokemon_para_player(loc,players_ativos):
         
         info_serializavel["Nivel"] = int(random.betavariate(2, 5) * 50)
 
-        if int(info_serializavel["Estagio"]) == 0:
-            P = 1.2
-        elif int(info_serializavel["Estagio"]) == 1:
-            P = 1.05
-        elif int(info_serializavel["Estagio"]) == 2:
-            P = 0.9
-        elif int(info_serializavel["Estagio"]) == 3:
-            P = 0.7
-        else:
-            P = 1
+        P = {0: 1.2, 1: 1.05, 2: 0.9, 3: 0.7}.get(int(info_serializavel["Estagio"]), 1)
 
         def gerar_valor(base, fator_min, fator_max, P):
             vmin = int(base * fator_min)
@@ -112,3 +103,4 @@ def gerar_pokemon_para_player(loc,players_ativos):
         }
 
         return PokemonAtivo
+    
