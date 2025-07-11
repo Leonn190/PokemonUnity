@@ -18,8 +18,8 @@ lock = threading.Lock()
 @pokemons_bp.route('/Verificar', methods=['POST'])
 def Verificar():
     data = request.get_json()
-    posX = data["X"]
-    posY = data["Y"]
+    posX = 0
+    posY = 0
     code = str(data["Code"])
 
     with lock:
