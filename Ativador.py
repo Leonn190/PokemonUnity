@@ -12,42 +12,8 @@ pokemons_bp = Blueprint('pokemons', __name__)
 
 pokemons_ativos = []
 players_ativos = {}
-Rodando = False  # Flag global para controlar o loop
 
 lock = threading.Lock()
-
-def iniciar_loop_geracao():
-    global Rodando
-    if Rodando:
-        return
-    Rodando = True
-
-    def loop_geracao():
-        global Rodando
-        while True:
-            with lock:
-                if not players_ativos:
-                    Rodando = False
-                    break
-
-                for code in list(players_ativos.keys()):
-                    player = players_ativos[code]
-                    player["atividade"] -= 1
-
-                    if player["atividade"] <= 0:
-                        del players_ativos[code]
-                        continue
-
-                    Gerado = gerar_pokemon_para_player(player["loc"], players_ativos)
-                    if Gerado:
-                        pokemons_ativos.append(Gerado)
-
-                if pokemons_ativos and random.randint(15, 70) < len(pokemons_ativos):
-                    pokemons_ativos.pop(random.randint(0, len(pokemons_ativos) - 1))
-
-            time.sleep(0.2)
-
-    threading.Thread(target=loop_geracao, daemon=True).start()
 
 @pokemons_bp.route('/Verificar', methods=['POST'])
 def Verificar():
@@ -62,8 +28,6 @@ def Verificar():
             "code": code,
             "atividade": 100
         }
-
-    iniciar_loop_geracao()
 
     raio = 70
     pokemons_proximos = []
@@ -81,6 +45,9 @@ def Verificar():
         Gerado = gerar_pokemon_para_player([posX, posY], players_ativos)
         if Gerado:
             pokemons_ativos.append(Gerado)
+        
+        if pokemons_ativos and random.randint(15, 70) < len(pokemons_ativos):
+                    pokemons_ativos.pop(random.randint(0, len(pokemons_ativos) - 1))
 
     return jsonify({
         "pokemons": pokemons_proximos,
