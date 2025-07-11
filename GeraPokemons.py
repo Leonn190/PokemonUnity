@@ -96,7 +96,7 @@ def Gerar():
         if random.randint(10, 60) < len(pokemons_ativos):
             pokemons_ativos.pop(random.randint(0, len(pokemons_ativos)-1))
 
-        return jsonify({"status": "ok", "mensagem": "Pokémon gerado com sucesso", "Pokemon": info_serializavel['Nome']})
+        return jsonify({"status": "ok", "mensagem": "Pokémon gerado com sucesso", "Pokemon": info_serializavel['Nome'], "loc": PokemonAtivo["loc"]})
     else:
         return jsonify({"status": "ok", "mensagem": "Nada gerado (Raridade)", "TentouGerar": info_serializavel['Nome']})
 
