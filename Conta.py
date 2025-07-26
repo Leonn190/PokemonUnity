@@ -1,5 +1,6 @@
-from flask import Blueprint, request, jsonify
-from app import db  # importa a instância do banco
+from flask import Blueprint
+from Extem import db  # Importa a instância compartilhada
+from flask import request, jsonify
 import json
 
 conta_bp = Blueprint('conta', __name__)
