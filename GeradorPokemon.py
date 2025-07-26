@@ -1,10 +1,11 @@
 import random
 import math
 import pandas as pd
+
 df = pd.read_csv("Pokemons.csv")
 
 # Essa função será chamada para cada jogador ativo, com a posição
-def gerar_pokemon_para_player(loc,players_ativos):
+def gerar_pokemon_para_player(loc, players_ativos, pokemons_ativos):
     code = random.randint(1, 1100)
     pokemon = df[df["Code"] == code]
 
@@ -18,11 +19,10 @@ def gerar_pokemon_para_player(loc,players_ativos):
 
     if random.randint(1, 11) > int(info_serializavel['Raridade']):
         
-        MAX_TENTATIVAS = 30
+        MAX_TENTATIVAS = 20
         for _ in range(MAX_TENTATIVAS):
-            # Gera ângulo e distância aleatória no intervalo [36, 66]
             angulo = random.uniform(0, 2 * math.pi)
-            distancia = random.uniform(36, 66)
+            distancia = random.uniform(35, 60)
 
             dx = math.cos(angulo) * distancia
             dy = math.sin(angulo) * distancia
@@ -30,23 +30,34 @@ def gerar_pokemon_para_player(loc,players_ativos):
             X = int(loc[0] + dx)
             Y = int(loc[1] + dy)
 
-            # Verifica se essa posição está fora do raio proibido de outros players
             pos_valida = True
+
+            # Verifica distância de outros players
             for other_code, other_data in players_ativos.items():
-                if other_data["loc"] != loc:  # Ignora o próprio player
+                if other_data["loc"] != loc:
                     ox, oy = other_data["loc"]
-                    distancia_entre = math.sqrt((X - ox) ** 2 + (Y - oy) ** 2)
-                    if distancia_entre < 36:
+                    if math.dist((X, Y), (ox, oy)) < 36:
+                        pos_valida = False
+                        break
+
+            # Verifica distância de outros pokémons ativos
+            if pos_valida:
+                for poke in pokemons_ativos:
+                    px, py = poke["loc"]
+                    if math.dist((X, Y), (px, py)) < 4:  # distância mínima entre pokémons
                         pos_valida = False
                         break
 
             if pos_valida:
                 break
         else:
-            # Se não achou nenhuma posição válida
             return False
         
         info_serializavel["Nivel"] = int(random.betavariate(2, 5) * 50)
+
+        info_serializavel["%1"] = max(0,info_serializavel["%1"] - int(random.betavariate(2, 4) * 70))
+        info_serializavel["%2"] = max(0,info_serializavel["%2"] - int(random.betavariate(2, 4) * 70))
+        info_serializavel["%3"] = max(0,info_serializavel["%3"] - int(random.betavariate(2, 4) * 70))
 
         P = {0: 1.2, 1: 1.05, 2: 0.9, 3: 0.7}.get(int(info_serializavel["Estagio"]), 1)
 
@@ -66,12 +77,12 @@ def gerar_pokemon_para_player(loc,players_ativos):
             base = int(info_serializavel[atributo])
             valor, minimo, maximo = gerar_valor(base, 0.75, 1.25, P)
             iv = ((valor - minimo) / (maximo - minimo)) * 100
-            if atributo not in ["CrD", "CrC"]:
-                valor = valor * (1 + (info_serializavel["Nivel"] * 0.01))
+            iv = round(iv, 2)
+            info_serializavel[atributo] = int(valor)
+            info_serializavel[f"IV_{atributo}"] = iv
             ivs.append(iv)
 
         IV = round(sum(ivs) / len(ivs), 2)
-        info_serializavel["ivs"] = ivs
         info_serializavel["IV"] = IV
 
         soma_atributos = sum([

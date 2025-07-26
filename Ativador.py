@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify
+import flask 
 from GeradorPokemon import gerar_pokemon_para_player
 import random
 import math
@@ -29,7 +30,7 @@ def Verificar():
             "atividade": 100
         }
 
-    raio = 70
+    raio = 60
     pokemons_proximos = []
 
     with lock:
@@ -42,11 +43,11 @@ def Verificar():
                 pokemons_proximos.append(pokemon)
 
         # 👇 Força a geração de Pokémon na chamada
-        Gerado = gerar_pokemon_para_player([posX, posY], players_ativos)
+        Gerado = gerar_pokemon_para_player([posX, posY], players_ativos, pokemons_ativos)
         if Gerado:
             pokemons_ativos.append(Gerado)
         
-        if pokemons_ativos and random.randint(15, 70) < len(pokemons_ativos):
+        if pokemons_ativos and random.randint(15, 80) < len(pokemons_ativos):
                     pokemons_ativos.pop(random.randint(0, len(pokemons_ativos) - 1))
 
     return jsonify({
