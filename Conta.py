@@ -1,5 +1,5 @@
 from flask import Blueprint
-from Extem import db  # Importa a instância compartilhada
+from Variaveis import db, Ligado, Ativo # Importa a instância compartilhada
 from flask import request, jsonify
 import json
 
@@ -20,10 +20,17 @@ class Player(db.Model):
 
 @conta_bp.route('/acessar', methods=['POST'])
 def acessar_conta():
+    global Ativo, Ligado  # Garante acesso às variáveis globais
     data = request.get_json()
     
     if not data or 'codigo' not in data:
         return jsonify({'erro': 'É necessário enviar um código'}), 400
+
+    if not Ativo:
+        return jsonify({'mensagem': 'Servidor não esta ativado'}), 503
+
+    if not Ligado:
+        return jsonify({'mensagem': 'Servidor está desligado'}), 504
 
     codigo = data['codigo']
 
@@ -39,6 +46,7 @@ def acessar_conta():
         return jsonify({'mensagem': 'Conta ainda não registrada', 'ativos': Ativos}), 202
     else:
         return jsonify({'mensagem': 'Conta já estava ativa', 'ativos': Ativos}), 200
+
 
 @conta_bp.route('/salvar', methods=['POST'])
 def salvar_conta():

@@ -1,9 +1,11 @@
 from flask import Flask
 from flask_cors import CORS
 
-from Extem import db  # Importa do módulo externo
+from Variaveis import db  # Importa do módulo externo
+
 from Conta import conta_bp
 from Ativador import pokemons_bp
+from ServerOperator import Operator_bp
 
 app = Flask(__name__)
 CORS(app)
@@ -18,6 +20,7 @@ db.init_app(app)
 # Registra os Blueprints
 app.register_blueprint(conta_bp)
 app.register_blueprint(pokemons_bp)
+app.register_blueprint(Operator_bp)
 
 if __name__ == '__main__':
     with app.app_context():
