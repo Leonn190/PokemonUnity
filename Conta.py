@@ -1,5 +1,6 @@
 from flask import Blueprint
-from Variaveis import db, Ligado, Ativo # Importa a instância compartilhada
+from Variaveis import db
+import Variaveis # Importa a instância compartilhada
 from flask import request, jsonify
 import json
 
@@ -20,16 +21,16 @@ class Player(db.Model):
 
 @conta_bp.route('/acessar', methods=['POST'])
 def acessar_conta():
-    global Ativo, Ligado  # Garante acesso às variáveis globais
+    global Variaveis  # Garante acesso às variáveis globais
     data = request.get_json()
     
     if not data or 'codigo' not in data:
         return jsonify({'erro': 'É necessário enviar um código'}), 400
 
-    if not Ativo:
+    if not Variaveis.Ativo:
         return jsonify({'mensagem': 'Servidor não esta ativado'}), 503
 
-    if not Ligado:
+    if not Variaveis.Ligado:
         return jsonify({'mensagem': 'Servidor está desligado'}), 504
 
     codigo = data['codigo']
