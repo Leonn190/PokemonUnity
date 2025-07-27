@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from Variaveis import db
+from sqlalchemy import inspect
 import Variaveis
 
 Operator_bp = Blueprint('operator', __name__)
@@ -57,4 +58,18 @@ def resetar_servidor():
         return jsonify({"status": "ok", "mensagem": "Servidor resetado. Todas as tabelas foram removidas."}), 200
     else:
         return jsonify({"status": "aviso", "mensagem": "Servidor já estava desativado. Nenhuma tabela foi removida."}), 202
+
+@Operator_bp.route('/verifica-servidor-ativo', methods=['GET'])
+def VerificaServerAtivo():
+    global Variaveis
+
+    inspetor = inspect(db.engine)
+    tabelas_existentes = inspetor.get_table_names()
+
+    if len(tabelas_existentes) > 0:
+        Variaveis.Ativo = True
+        return jsonify({"status": "ok", "mensagem": "Servidor ativo. Tabelas detectadas."}), 200
+    else:
+        Variaveis.Ativo = False
+        return jsonify({"status": "erro", "mensagem": "Servidor inativo. Nenhuma tabela encontrada."}), 503
     
