@@ -43,5 +43,5 @@ def ligar_desligar():
         return jsonify({"erro": "Comando inválido. Use true ou false no campo 'ligar'."}), 400
 
 @Operator_bp.route('/estado-server', methods=['GET'])
-def ligar_desligar():
+def verifica_estado():
     return jsonify({"ligado": Ligado, "ativo": Ativo})
