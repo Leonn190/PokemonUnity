@@ -2,6 +2,7 @@ from flask import Flask
 from flask_cors import CORS  # Importa do módulo externo
 from Conta import conta_bp
 from Ativador import pokemons_bp
+import os
 from ServerOperator import Operator_bp
 import Variaveis
 
@@ -9,7 +10,8 @@ app = Flask(__name__)
 CORS(app)
 
 # Configuração do banco
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL")
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Inicializa o banco com o app
