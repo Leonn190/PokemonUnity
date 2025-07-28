@@ -1,5 +1,4 @@
 from flask import Blueprint
-from Variaveis import db
 import Variaveis # Importa a instância compartilhada
 from flask import request, jsonify
 import json
@@ -8,10 +7,10 @@ conta_bp = Blueprint('conta', __name__)
 Ativos = []
 
 # Modelo Player para salvar os dados no banco
-class Player(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    codigo = db.Column(db.String(100), unique=True, nullable=False)
-    dados = db.Column(db.Text, nullable=False)  # JSON serializado
+class Player(Variaveis.db.Model):
+    id = Variaveis.db.Column(Variaveis.db.Integer, primary_key=True)
+    codigo = Variaveis.db.Column(Variaveis.db.String(100), unique=True, nullable=False)
+    dados = Variaveis.db.Column(Variaveis.db.Text, nullable=False)  # JSON serializado
 
     def to_dict(self):
         return {
@@ -61,12 +60,12 @@ def salvar_conta():
     player = Player.query.filter_by(codigo=codigo).first()
     if player:
         player.dados = json.dumps(data)
-        db.session.commit()
+        Variaveis.db.session.commit()
         return jsonify({'mensagem': 'Conta atualizada com sucesso'}), 200
     
     novo_player = Player(codigo=codigo, dados=json.dumps(data))
-    db.session.add(novo_player)
-    db.session.commit()
+    Variaveis.db.session.add(novo_player)
+    Variaveis.db.session.commit()
     return jsonify({'mensagem': 'Conta registrada com sucesso'}), 201
 
 @conta_bp.route('/sair', methods=['POST'])

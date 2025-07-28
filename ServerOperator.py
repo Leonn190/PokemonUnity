@@ -1,5 +1,4 @@
 from flask import Blueprint, request, jsonify
-from Variaveis import db
 from sqlalchemy import inspect
 import Variaveis
 
@@ -22,7 +21,7 @@ def verificar_operador():
 def ativar_servidor():
     global Variaveis
     if not Variaveis.Ativo:
-        db.create_all()
+        Variaveis.db.create_all()
         Variaveis.Ativo = True
         return jsonify({"status": "ok", "mensagem": "Servidor ativado. Tabelas criadas."}), 200
     else:
@@ -52,7 +51,7 @@ def verifica_estado():
 def resetar_servidor():
     global Variaveis
     if Variaveis.Ativo:
-        db.drop_all()     # Apaga todas as tabelas
+        Variaveis.db.drop_all()     # Apaga todas as tabelas
         Variaveis.Ativo = False     # Marca o servidor como desativado
         Variaveis.Ligado = False
         return jsonify({"status": "ok", "mensagem": "Servidor resetado. Todas as tabelas foram removidas."}), 200
@@ -63,7 +62,7 @@ def resetar_servidor():
 def VerificaServerAtivo():
     global Variaveis
 
-    inspetor = inspect(db.engine)
+    inspetor = inspect(Variaveis.db.engine)
     tabelas_existentes = inspetor.get_table_names()
 
     if len(tabelas_existentes) > 0:
