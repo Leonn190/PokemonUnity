@@ -83,3 +83,9 @@ def sair_conta():
         return jsonify({'mensagem': 'Conta desconectada', 'ativos': Ativos}), 200
     else:
         return jsonify({'mensagem': 'Conta não estava ativa'}), 202
+    
+@conta_bp.route('/contas', methods=['GET'])
+def listar_contas():
+    contas = Player.query.all()
+    contas_dict = [conta.to_dict() for conta in contas]
+    return jsonify({'contas': contas_dict}), 200
