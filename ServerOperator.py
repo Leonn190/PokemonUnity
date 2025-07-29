@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify
+from CriaMapa import gerar_e_salvar_mapa, Mapa
 from sqlalchemy import inspect
 import Variaveis as V
 import json
@@ -22,7 +23,6 @@ def verificar_operador():
 def ativar_servidor():
     global V
     if not V.Ativo:
-        from CriaMapa import gerar_e_salvar_mapa
         V.db.create_all()
         gerar_e_salvar_mapa(1000,1000)
         V.Ativo = True
@@ -35,7 +35,6 @@ def ligar_desligar():
     global V
     dados = request.get_json()
     comando = dados.get("ligar")  # True ou False
-    from CriaMapa import Mapa
 
     if comando is True:
         V.Ligado = True
