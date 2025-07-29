@@ -1,5 +1,13 @@
 import random
 from collections import deque
+import Variaveis as V
+import json
+from sqlalchemy import Column, Text
+
+class Mapa(V.db.Model):
+    __tablename__ = "mapa"
+    biomas_json = Column(Text, nullable=False)
+    objetos_json = Column(Text, nullable=False)
 
 def GeradorGridBiomasAvancado(largura, altura, seed=None):
     if seed is not None:
@@ -125,3 +133,23 @@ def GeradorGridObjetos(grid_biomas, seed=None):
 
     return grid_objetos
 
+def gerar_e_salvar_mapa(largura, altura, seed=None):
+    # Gerar as grids
+    grid_biomas = GeradorGridBiomasAvancado(largura, altura, seed=seed)
+    grid_objetos = GeradorGridObjetos(grid_biomas, seed=seed)
+
+    # Serializar para JSON
+    biomas_json = json.dumps(grid_biomas)
+    objetos_json = json.dumps(grid_objetos)
+
+    # Verifica se já existe o único mapa (por simplicidade)
+    mapa_existente = Mapa.query.first()
+    if mapa_existente:
+        mapa_existente.biomas_json = biomas_json
+        mapa_existente.objetos_json = objetos_json
+    else:
+        novo_mapa = Mapa(biomas_json=biomas_json, objetos_json=objetos_json)
+        V.db.session.add(novo_mapa)
+
+    V.db.session.commit()
+    
