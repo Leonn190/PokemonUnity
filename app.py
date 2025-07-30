@@ -1,11 +1,8 @@
 from flask import Flask
-from flask import request, jsonify
 from flask_cors import CORS  # Importa do módulo externo
 from Conta import conta_bp
 from Ativador import pokemons_bp
 import os
-from CriaMapa import Mapa
-import json
 from ServerOperator import Operator_bp
 import Variaveis
 
@@ -27,14 +24,7 @@ app.register_blueprint(Operator_bp)
 
 @app.route("/rotas")
 def rotas():
-    mapa = Mapa.query.first()  # pega o único mapa (ou o primeiro)
-    if not mapa:
-        return jsonify({'erro': 'Mapa não encontrado'}), 404
-    
-    return jsonify({
-        'biomas': json.loads(mapa.biomas_json),
-        'objetos': json.loads(mapa.objetos_json)
-    }), 200
+    return {'rotas': [str(rule) for rule in app.url_map.iter_rules()]}
 
 if __name__ == '__main__':
     with app.app_context():

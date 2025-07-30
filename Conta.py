@@ -101,7 +101,7 @@ def listar_contas():
 def pegar_mapa():
     mapa = Mapa.query.first()  # pega o único mapa (ou o primeiro)
     if not mapa:
-        return jsonify({'erro': 'Mapa não encontrado'}), 404
+        return jsonify({'erro': 'Mapa não encontrado'}), 405
     
     return jsonify({
         'biomas': json.loads(mapa.biomas_json),
