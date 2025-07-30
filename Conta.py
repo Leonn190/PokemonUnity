@@ -40,7 +40,7 @@ def acessar_conta():
             V.PlayersAtivos[codigo] = {
                 "Code": codigo,
                 "Conta": Conteudo,
-                "Loc": Conteudo["Loc"]
+                "Loc": Conteudo["personagem"]["Loc"]
             }
             return jsonify({
                 'mensagem': 'Conta acessada com sucesso',
@@ -54,7 +54,6 @@ def acessar_conta():
             'ativos': list(V.PlayersAtivos.keys()),
             'conta': V.PlayersAtivos[codigo]["Conteudo"]
         }), 200
-
 
 @conta_bp.route('/salvar', methods=['POST'])
 def salvar_conta():
