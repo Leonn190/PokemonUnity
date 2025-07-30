@@ -22,8 +22,11 @@ app.register_blueprint(conta_bp)
 app.register_blueprint(pokemons_bp)
 app.register_blueprint(Operator_bp)
 
+@app.route("/rotas")
+def rotas():
+    return {'rotas': [str(rule) for rule in app.url_map.iter_rules()]}
+
 if __name__ == '__main__':
     with app.app_context():
         Variaveis.db.create_all()  # Cria as tabelas no SQLite
     app.run(debug=True)
-    
