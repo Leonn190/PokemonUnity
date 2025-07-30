@@ -16,7 +16,7 @@ def verificar_operador():
     if str(codigo) == str(OperatorCode):
         return jsonify({"operador": True}), 200
     else:
-        return jsonify({"operador": False}), 200
+        return jsonify({"operador": False}), 201
 
 
 @Operator_bp.route('/ativar-servidor', methods=['GET'])

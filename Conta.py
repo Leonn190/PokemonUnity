@@ -40,7 +40,7 @@ def acessar_conta():
             V.PlayersAtivos[codigo] = {
                 "Code": codigo,
                 "Conta": Conteudo,
-                "Loc": Conteudo["personagem"]["Loc"]
+                "Loc": Conteudo["dados"]["personagem"]["Loc"]
             }
             return jsonify({
                 'mensagem': 'Conta acessada com sucesso',
