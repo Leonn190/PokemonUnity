@@ -3,7 +3,9 @@ from GeradorPokemon import gerar_pokemon_para_player
 import random
 import math
 import pandas as pd
+import json
 import Variaveis as V
+from CriaMapa import Mapa
 
 df = pd.read_csv("Pokemons.csv")
 
@@ -57,8 +59,13 @@ def Verificar():
     })
 
 @pokemons_bp.route('/Mapa', methods=['GET'])
-def Mapa():
+def pegar_mapa():
+    mapa = Mapa.query.first()  # pega o único mapa (ou o primeiro)
+    if not mapa:
+        return jsonify({'erro': 'Mapa não encontrado'}), 405
+    
     return jsonify({
-        "GridBiomas": V.GridBiomas,
-        "GridObjetos": V.GridObjetos
-    })
+        'biomas': json.loads(mapa.biomas_json),
+        'objetos': json.loads(mapa.objetos_json)
+    }), 200
+

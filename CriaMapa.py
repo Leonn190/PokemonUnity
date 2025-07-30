@@ -113,14 +113,12 @@ def gerar_e_salvar_mapa(largura, altura, seed=None):
     biomas_json = json.dumps(grid_biomas)
     objetos_json = json.dumps(grid_objetos)
 
-    # Verifica se já existe o único mapa (por simplicidade)
-    mapa_existente = Mapa.query.first()
-    if mapa_existente:
-        mapa_existente.biomas_json = biomas_json
-        mapa_existente.objetos_json = objetos_json
-    else:
-        novo_mapa = Mapa(biomas_json=biomas_json, objetos_json=objetos_json)
-        V.db.session.add(novo_mapa)
+    # Apaga todos os mapas existentes antes de salvar o novo
+    V.db.session.query(Mapa).delete()
+
+    # Cria o novo mapa
+    novo_mapa = Mapa(biomas_json=biomas_json, objetos_json=objetos_json)
+    V.db.session.add(novo_mapa)
 
     V.db.session.commit()
     

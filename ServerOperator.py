@@ -39,22 +39,10 @@ def ligar_desligar():
     if comando is True:
         V.Ligado = True
 
-        # Buscar o mapa existente no banco de dados
-        mapa_existente = V.db.session.query(Mapa).first()
-
-        if mapa_existente:
-            # Desserializar os JSONs
-            V.GridBiomas = json.loads(mapa_existente.biomas_json)
-            V.GridObjetos = json.loads(mapa_existente.objetos_json)
-        else:
-            return jsonify({"erro": "Nenhum mapa encontrado no banco de dados."}), 500
-
         return jsonify({"ligado": True, "mensagem": "Servidor ligado"}), 200
 
     elif comando is False:
         V.Ligado = False
-        V.GridBiomas = None
-        V.GridObjetos = None
         return jsonify({"ligado": False, "mensagem": "Servidor desligado"}), 200
 
     else:

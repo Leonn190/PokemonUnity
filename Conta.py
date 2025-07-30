@@ -97,13 +97,3 @@ def listar_contas():
     contas_dict = [conta.to_dict() for conta in contas]
     return jsonify({'contas': contas_dict}), 200
 
-@conta_bp.route('/mapaa', methods=['GET'])
-def pegar_mapa():
-    mapa = Mapa.query.first()  # pega o único mapa (ou o primeiro)
-    if not mapa:
-        return jsonify({'erro': 'Mapa não encontrado'}), 405
-    
-    return jsonify({
-        'biomas': json.loads(mapa.biomas_json),
-        'objetos': json.loads(mapa.objetos_json)
-    }), 200

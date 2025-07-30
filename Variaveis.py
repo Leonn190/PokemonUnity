@@ -5,8 +5,5 @@ db = SQLAlchemy()
 Ativo = False
 Ligado = False
 
-GridBiomas = None
-GridObjetos = None
-
 PokemonsAtivos = []
 PlayersAtivos = {}
