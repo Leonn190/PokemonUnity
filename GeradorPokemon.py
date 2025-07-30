@@ -4,6 +4,29 @@ import pandas as pd
 
 df = pd.read_csv("Pokemons.csv")
 
+CAMPOS_POKEMON = [
+    "Nome",
+    "Vida", "Atk", "Def", "SpA", "SpD", "Vel",
+    "Mag", "Per", "Ene", "EnR", "CrD", "CrC",
+    "Sinergia", "Habilidades", "Equipaveis", "Total",
+    "Poder R1", "Poder R2", "Poder R3",
+    "Tipo1", "%1", "Tipo2", "%2", "Tipo3", "%3",
+    "Altura", "Peso", "Raridade", "Estagio", "FF", "Code",
+    "Nivel",
+    "IV",
+    "IV_Vida", "IV_Atk", "IV_Def", "IV_SpA", "IV_SpD", "IV_Vel",
+    "IV_Mag", "IV_Per", "IV_Ene", "IV_EnR", "IV_CrD", "IV_CrC"
+]
+
+def CompactarPokemon(info):
+    valores = []
+    for campo in CAMPOS_POKEMON:
+        valor = info.get(campo, "")
+        # Converter para string e substituir vírgulas internas se houver
+        valor_str = str(valor).replace(",", ";")  # para não quebrar o csv
+        valores.append(valor_str)
+    return ",".join(valores)
+
 # Essa função será chamada para cada jogador ativo, com a posição
 def gerar_pokemon_para_player(loc, players_ativos, pokemons_ativos):
     code = random.randint(1, 1100)
@@ -109,8 +132,10 @@ def gerar_pokemon_para_player(loc, players_ativos, pokemons_ativos):
         info_serializavel["Total"] = int(total)
         info_serializavel["nome"] = info_serializavel.get("Nome", "")
 
+        string_comprimida = CompactarPokemon(info_serializavel)
+
         PokemonAtivo = {
-            "info": info_serializavel,
+            "info": string_comprimida,
             "loc": [X, Y]
         }
 
