@@ -2,13 +2,14 @@ import random
 from collections import deque
 import Variaveis as V
 import json
-from sqlalchemy import Column, Text
+from sqlalchemy import Column, Text, Integer
 
 class Mapa(V.db.Model):
     __tablename__ = "mapa"
+    id = Column(Integer, primary_key=True)  # <-- ESSENCIAL
     biomas_json = Column(Text, nullable=False)
     objetos_json = Column(Text, nullable=False)
-
+    
 def GeradorGridBiomasAvancado(largura, altura, seed=None):
     if seed is not None:
         random.seed(seed)

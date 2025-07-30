@@ -26,3 +26,4 @@ if __name__ == '__main__':
     with app.app_context():
         Variaveis.db.create_all()  # Cria as tabelas no SQLite
     app.run(debug=True)
+    
