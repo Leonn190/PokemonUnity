@@ -1,6 +1,7 @@
 from flask import Blueprint
 import Variaveis as V # Importa a instância compartilhada
 from flask import request, jsonify
+from CriaMapa import Mapa
 import json
 
 conta_bp = Blueprint('conta', __name__)
@@ -95,3 +96,14 @@ def listar_contas():
     contas = Player.query.all()
     contas_dict = [conta.to_dict() for conta in contas]
     return jsonify({'contas': contas_dict}), 200
+
+@conta_bp.route('/mapa', methods=['GET'])
+def pegar_mapa():
+    mapa = Mapa.query.first()  # pega o único mapa (ou o primeiro)
+    if not mapa:
+        return jsonify({'erro': 'Mapa não encontrado'}), 404
+    
+    return jsonify({
+        'biomas': json.loads(mapa.biomas_json),
+        'objetos': json.loads(mapa.objetos_json)
+    }), 200
