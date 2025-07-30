@@ -17,14 +17,14 @@ def Verificar():
     posY = data["Y"]
     code = str(data["Code"])
 
-    V.players_ativos[code] = {
+    V.PlayersAtivos[code] = {
         "loc": [posX, posY],
         "code": code,
     }
 
     # Lista de Pokémon próximos
     pokemons_proximos = []
-    for pokemon in V.pokemons_ativos:
+    for pokemon in V.PokemonsAtivos:
         if not pokemon or not pokemon.get("loc"):
             continue
         px, py = pokemon["loc"]
@@ -43,13 +43,13 @@ def Verificar():
             players_proximos.append(player)
 
     # Geração de novo Pokémon
-    Gerado = gerar_pokemon_para_player([posX, posY], V.players_ativos, V.pokemons_ativos)
+    Gerado = gerar_pokemon_para_player([posX, posY], V.PlayersAtivos, V.PokemonsAtivos)
     if Gerado:
-        V.pokemons_ativos.append(Gerado)
+        V.PokemonsAtivos.append(Gerado)
 
     # Remoção randômica
-    if V.pokemons_ativos and random.randint(15, 80) < len(V.pokemons_ativos):
-        V.pokemons_ativos.pop(random.randint(0, len(V.pokemons_ativos) - 1))
+    if V.PokemonsAtivos and random.randint(15, 80) < len(V.PokemonsAtivos):
+        V.PokemonsAtivos.pop(random.randint(0, len(V.PokemonsAtivos) - 1))
 
     return jsonify({
         "pokemons": pokemons_proximos,
