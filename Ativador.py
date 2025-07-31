@@ -18,11 +18,18 @@ def Verificar():
     posX = data["X"]
     posY = data["Y"]
     code = str(data["Code"])
+    dados = data["Dados"]
 
-    V.PlayersAtivos[code] = {
-        "loc": [posX, posY],
-        "code": code,
-    }
+    V.PlayersAtivos[code].update({"Loc": [posX,posY]})
+    V.PlayersAtivos[code]["Conta"].update({"DadosPassageiros": {
+        "Nome": dados["Nome"],
+        "Skin": dados["Skin"],
+        "Nivel": dados["Nivel"],
+        "Loc": dados["Loc"],
+        "Esquerda": dados["Esquerda"],
+        "Direita": dados["Direita"],
+        "Angulo": dados["Angulo"]
+        }})
 
     # Lista de Pokémon próximos
     pokemons_proximos = []
@@ -42,7 +49,9 @@ def Verificar():
         px, py = player["Loc"]
         distancia = math.sqrt((px - posX) ** 2 + (py - posY) ** 2)
         if distancia <= raio:
-            players_proximos.append(player)
+            dados_passageiros = player.get("Conta", {}).get("DadosPassageiros")
+            if dados_passageiros:
+                players_proximos.append(dados_passageiros)
 
     # Geração de novo Pokémon
     Gerado = gerar_pokemon_para_player([posX, posY], V.PlayersAtivos, V.PokemonsAtivos)

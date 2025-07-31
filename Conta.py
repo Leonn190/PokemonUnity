@@ -40,8 +40,8 @@ def acessar_conta():
             Conteudo = player.to_dict()
             V.PlayersAtivos[codigo] = {
                 "Code": codigo,
-                "Conta": Conteudo,
-                "Loc": Conteudo["dados"]["personagem"]["Loc"]
+                "Conta": Conteudo["dados"],
+                "Loc": Conteudo["dados"]["Loc"]
             }
             return jsonify({
                 'mensagem': 'Conta acessada com sucesso',
@@ -67,11 +67,11 @@ def salvar_conta():
 
     player = Player.query.filter_by(codigo=codigo).first()
     if player:
-        player.dados = json.dumps(data)
+        player.dados = json.dumps(data["personagem"])
         V.db.session.commit()
         return jsonify({'mensagem': 'Conta atualizada com sucesso'}), 200
     
-    novo_player = Player(codigo=codigo, dados=json.dumps(data))
+    novo_player = Player(codigo=codigo, dados=json.dumps(data["personagem"]))
     V.db.session.add(novo_player)
     V.db.session.commit()
     return jsonify({'mensagem': 'Conta registrada com sucesso'}), 201

@@ -78,7 +78,7 @@ def GeraGridBiomas(largura, altura, seed=None):
     
     return grid
 
-def GeraGridObjetos(grid_biomas, prob_objeto=0.005, distancia_minima=9, seed=None):
+def GeraGridObjetos(grid_biomas, prob_objeto=0.01, distancia_minima=5, seed=None):
     if seed is not None:
         random.seed(seed)
     
