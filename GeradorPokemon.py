@@ -130,13 +130,14 @@ def gerar_pokemon_para_player(loc, players_ativos, pokemons_ativos):
         )
 
         info_serializavel["Total"] = int(total)
-        info_serializavel["nome"] = info_serializavel.get("Nome", "")
-
         string_comprimida = CompactarPokemon(info_serializavel)
+
+        ID = f"{info_serializavel["Nome"]}-{random.randint(1,200)}"
 
         PokemonAtivo = {
             "info": string_comprimida,
-            "loc": [X, Y]
+            "loc": [X, Y],
+            "id": ID
         }
 
         return PokemonAtivo
