@@ -66,7 +66,7 @@ def gerar_pokemon_para_player(loc, players_ativos, pokemons_ativos):
             # Verifica distância de outros pokémons ativos
             if pos_valida:
                 for poke in pokemons_ativos:
-                    px, py = poke["Loc"]
+                    px, py = poke["loc"]
                     if math.dist((X, Y), (px, py)) < 4:  # distância mínima entre pokémons
                         pos_valida = False
                         break
