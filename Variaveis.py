@@ -7,3 +7,4 @@ Ligado = False
 
 PokemonsAtivos = []
 PlayersAtivos = {}
+BausAtivos = {}

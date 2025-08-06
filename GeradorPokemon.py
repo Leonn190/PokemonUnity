@@ -141,4 +141,65 @@ def gerar_pokemon_para_player(loc, players_ativos, pokemons_ativos):
         }
 
         return PokemonAtivo
-    
+
+def gerar_bau(loc, players_ativos, baus_ativos):
+    MAX_BAUS = 50
+    if len(baus_ativos) >= MAX_BAUS:
+        return
+
+    # Nova distribuição de raridade (6 níveis), em porcentagens cumulativas
+    # Exemplo: 1 - comum (40%), 2 - incomum (25%), ..., 6 - mítica (2%)
+    raridades = [
+        (1, 40),   # Comum
+        (2, 65),   # Incomum
+        (3, 82),   # Raro
+        (4, 92),   # Épico
+        (5, 98),   # Lendário
+        (6, 100),  # Mítico
+    ]
+
+    # Sorteia número de 1 a 100
+    sorte = random.randint(1, 100)
+    raridade_selecionada = None
+    for r, limite in raridades:
+        if sorte <= limite:
+            raridade_selecionada = r
+            break
+
+    MAX_TENTATIVAS = 20
+    DIST_MIN_JOGADOR = 40
+    DIST_MIN_BAU = 10
+
+    for _ in range(MAX_TENTATIVAS):
+        dx = random.randint(-60, 60)
+        dy = random.randint(-60, 60)
+        X = loc[0] + dx
+        Y = loc[1] + dy
+
+        # Verifica distância de todos os jogadores
+        pos_valida = True
+        for other_data in players_ativos.values():
+            ox, oy = other_data["Loc"]
+            if math.dist((X, Y), (ox, oy)) < DIST_MIN_JOGADOR:
+                pos_valida = False
+                break
+
+        if not pos_valida:
+            continue
+
+        # Verifica distância de outros baús
+        for bau_data in baus_ativos.values():
+            bx, by, _ = bau_data
+            if math.dist((X, Y), (bx, by)) < DIST_MIN_BAU:
+                pos_valida = False
+                break
+
+        if pos_valida:
+            novo_id = random.randint(10000, 999999)
+            while novo_id in baus_ativos:
+                novo_id = random.randint(10000, 999999)
+
+            baus_ativos[novo_id] = [X, Y, raridade_selecionada]
+            return
+
+    return
