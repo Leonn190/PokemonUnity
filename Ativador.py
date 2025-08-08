@@ -26,8 +26,7 @@ def Verificar():
         "Skin": dados["Skin"],
         "Nivel": dados["Nivel"],
         "Loc": dados["Loc"],
-        "Esquerda": dados["Esquerda"],
-        "Direita": dados["Direita"],
+        "Selecionado": dados["Selecionado"],
         "Angulo": dados["Angulo"]
         }})
 
