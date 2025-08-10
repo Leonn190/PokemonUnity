@@ -58,7 +58,7 @@ def Verificar():
         V.PokemonsAtivos.append(Gerado)
 
     # Remoção randômica
-    if V.PokemonsAtivos and random.randint(15, 80) < len(V.PokemonsAtivos):
+    if V.PokemonsAtivos and random.randint(20, 100) < len(V.PokemonsAtivos):
         V.PokemonsAtivos.pop(random.randint(0, len(V.PokemonsAtivos) - 1))
 
     gerar_bau([posX, posY], V.PlayersAtivos,V.BausAtivos)
