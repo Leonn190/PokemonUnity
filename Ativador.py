@@ -108,3 +108,26 @@ def remover_bau():
 
     return jsonify({"mensagem": f"Baú {bau_id} removido com sucesso"}), 200
 
+@pokemons_bp.route('/remover-pokemon', methods=['POST'])
+def remover_pokemon():
+    dados = request.get_json()
+    pokemon_id = dados.get("id")
+
+    if pokemon_id is None:
+        return jsonify({"erro": "ID do pokemon não fornecido"}), 400
+
+    # Procurar o índice do Pokémon com esse ID
+    indice_remover = None
+    for i, pokemon in enumerate(V.PokemonsAtivos):
+        if pokemon.get("id") == pokemon_id:
+            indice_remover = i
+            break
+
+    if indice_remover is None:
+        return jsonify({"erro": "Pokémon não encontrado"}), 404
+
+    # Remover o Pokémon encontrado
+    removido = V.PokemonsAtivos.pop(indice_remover)
+
+    return jsonify({"mensagem": f"Pokémon {removido['id']} removido com sucesso"}), 200
+

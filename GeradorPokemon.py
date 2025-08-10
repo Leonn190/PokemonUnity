@@ -15,7 +15,7 @@ CAMPOS_POKEMON = [
     "Nivel",
     "IV",
     "IV_Vida", "IV_Atk", "IV_Def", "IV_SpA", "IV_SpD", "IV_Vel",
-    "IV_Mag", "IV_Per", "IV_Ene", "IV_EnR", "IV_CrD", "IV_CrC"
+    "IV_Mag", "IV_Per", "IV_Ene", "IV_EnR", "IV_CrD", "IV_CrC", "ID"
 ]
 
 def CompactarPokemon(info):
@@ -130,9 +130,9 @@ def gerar_pokemon_para_player(loc, players_ativos, pokemons_ativos):
         )
 
         info_serializavel["Total"] = int(total)
+        ID = f"{info_serializavel["Nome"]}{random.randint(1,2000)}"
+        info_serializavel["ID"] = ID
         string_comprimida = CompactarPokemon(info_serializavel)
-
-        ID = f"{info_serializavel["Nome"]}-{random.randint(1,200)}"
 
         PokemonAtivo = {
             "info": string_comprimida,
