@@ -1,30 +1,60 @@
-from flask import Blueprint, request, jsonify
-from Registros import Registros
+from flask import Blueprint
+import Variaveis as V # Importa a instância compartilhada
+from flask import request, jsonify
+from CriaMapa import Mapa
+import json
 
 conta_bp = Blueprint('conta', __name__)
-Ativos = []
+
+# Modelo Player para salvar os dados no banco
+class Player(V.db.Model):
+    id = V.db.Column(V.db.Integer, primary_key=True)
+    codigo = V.db.Column(V.db.String(100), unique=True, nullable=False)
+    dados = V.db.Column(V.db.Text, nullable=False)  # JSON serializado
+
+    def to_dict(self):
+        return {
+            "codigo": self.codigo,
+            "dados": json.loads(self.dados)
+        }
 
 @conta_bp.route('/acessar', methods=['POST'])
 def acessar_conta():
+    global V
     data = request.get_json()
-    
+
     if not data or 'codigo' not in data:
         return jsonify({'erro': 'É necessário enviar um código'}), 400
 
+    if not V.Ativo:
+        return jsonify({'mensagem': 'Servidor não está ativado'}), 503
+
+    if not V.Ligado:
+        return jsonify({'mensagem': 'Servidor está desligado'}), 504
+
     codigo = data['codigo']
 
-    if codigo not in Ativos:
-        for Registro in Registros:
-            if codigo == Registro["codigo"]:
-                Ativos.append(codigo)
-                return jsonify({
-                    'mensagem': 'Conta acessada com sucesso',
-                    'ativos': Ativos,
-                    'conta': Registro
-                }), 201
-        return jsonify({'mensagem': 'Conta ainda não registrada', 'ativos': Ativos}), 202
+    if codigo not in V.PlayersAtivos:
+        player = Player.query.filter_by(codigo=codigo).first()
+        if player:
+            Conteudo = player.to_dict()
+            V.PlayersAtivos[codigo] = {
+                "Code": codigo,
+                "Conta": Conteudo["dados"],
+                "Loc": Conteudo["dados"]["Loc"]
+            }
+            return jsonify({
+                'mensagem': 'Conta acessada com sucesso',
+                'ativos': list(V.PlayersAtivos.keys()),
+                'conta': player.to_dict()
+            }), 201
+        return jsonify({'mensagem': 'Conta ainda não registrada', 'ativos': list(V.PlayersAtivos.keys())}), 202
     else:
-        return jsonify({'mensagem': 'Conta já estava ativa', 'ativos': Ativos}), 200
+        return jsonify({
+            'mensagem': 'Conta já estava ativa',
+            'ativos': list(V.PlayersAtivos.keys()),
+            'conta': V.PlayersAtivos[codigo]["Conteudo"]
+        }), 200
 
 @conta_bp.route('/salvar', methods=['POST'])
 def salvar_conta():
@@ -35,12 +65,15 @@ def salvar_conta():
     
     codigo = data['codigo']
 
-    for i, Registro in enumerate(Registros):
-        if codigo == Registro["codigo"]:
-            Registros[i] = data
-            return jsonify({'mensagem': 'Conta atualizada com sucesso'}), 200
+    player = Player.query.filter_by(codigo=codigo).first()
+    if player:
+        player.dados = json.dumps(data["personagem"])
+        V.db.session.commit()
+        return jsonify({'mensagem': 'Conta atualizada com sucesso'}), 200
     
-    Registros.append(data)
+    novo_player = Player(codigo=codigo, dados=json.dumps(data["personagem"]))
+    V.db.session.add(novo_player)
+    V.db.session.commit()
     return jsonify({'mensagem': 'Conta registrada com sucesso'}), 201
 
 @conta_bp.route('/sair', methods=['POST'])
@@ -49,12 +82,18 @@ def sair_conta():
 
     if not data or 'codigo' not in data:
         return jsonify({'erro': 'É necessário enviar um código'}), 400
-    
+
     codigo = data['codigo']
 
-    if codigo in Ativos:
-        Ativos.remove(codigo)
-        return jsonify({'mensagem': 'Conta desconectada', 'ativos': Ativos}), 200
+    if codigo in V.PlayersAtivos:
+        del V.PlayersAtivos[codigo]  # Remove a entrada do dicionário
+        return jsonify({'mensagem': 'Conta desconectada', 'ativos': list(V.PlayersAtivos.keys())}), 200
     else:
         return jsonify({'mensagem': 'Conta não estava ativa'}), 202
     
+@conta_bp.route('/contas', methods=['GET'])
+def listar_contas():
+    contas = Player.query.all()
+    contas_dict = [conta.to_dict() for conta in contas]
+    return jsonify({'contas': contas_dict}), 200
+

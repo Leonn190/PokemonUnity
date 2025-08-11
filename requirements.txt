@@ -3,3 +3,6 @@ gunicorn
 requests
 flask-cors
 pandas
+flask_sqlalchemy
+sqlalchemy
+psycopg2-binary>=2.9
