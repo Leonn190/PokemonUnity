@@ -53,7 +53,7 @@ def Verificar():
                 players_proximos.append(dados_passageiros)
 
     # Geração de novo Pokémon
-    Gerado = gerar_pokemon_para_player([posX, posY], V.PlayersAtivos, V.PokemonsAtivos)
+    Gerado = gerar_pokemon_para_player([posX, posY], V.PlayersAtivos, V.PokemonsAtivos, raio)
     if Gerado:
         V.PokemonsAtivos.append(Gerado)
 

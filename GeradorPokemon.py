@@ -28,7 +28,7 @@ def CompactarPokemon(info):
     return ",".join(valores)
 
 # Essa função será chamada para cada jogador ativo, com a posição
-def gerar_pokemon_para_player(loc, players_ativos, pokemons_ativos):
+def gerar_pokemon_para_player(loc, players_ativos, pokemons_ativos, raio):
     code = random.randint(1, 1100)
     pokemon = df[df["Code"] == code]
 
@@ -59,7 +59,7 @@ def gerar_pokemon_para_player(loc, players_ativos, pokemons_ativos):
             for other_code, other_data in players_ativos.items():
                 if other_data["Loc"] != loc:
                     ox, oy = other_data["Loc"]
-                    if math.dist((X, Y), (ox, oy)) < 36:
+                    if math.dist((X, Y), (ox, oy)) < raio * 2:
                         pos_valida = False
                         break
 
@@ -139,14 +139,13 @@ def gerar_pokemon_para_player(loc, players_ativos, pokemons_ativos):
             "loc": [X, Y],
             "id": ID,
             "extra": {
-                "TamanhoMirando": 55 - info_serializavel["Nivel"] + random.randint(1, 8),
-                "VelocidadeMirando": max(0.5, info_serializavel["IV"] / 10 + random.randint(-1, int(info_serializavel["Vel"] / 10)) - 4),
-                "Dificuldade": info_serializavel["Total"] / 10 + random.randint(0, 20),
+                "TamanhoMirando": 50 - info_serializavel["Nivel"] + random.randint(-5, 10),
+                "VelocidadeMirando": max(0.6, info_serializavel["IV"] / 10 + random.randint(0, int(info_serializavel["Vel"] / 10)) - 2),
+                "Dificuldade": info_serializavel["Total"] * info_serializavel["Nivel"] / 100 + random.randint(0, 30),
                 "Frutas": 0
             }
         }
         
-
         return PokemonAtivo
 
 def gerar_bau(loc, players_ativos, baus_ativos):
