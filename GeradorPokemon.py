@@ -140,11 +140,12 @@ def gerar_pokemon_para_player(loc, players_ativos, pokemons_ativos):
             "id": ID,
             "extra": {
                 "TamanhoMirando": 55 - info_serializavel["Nivel"] + random.randint(1, 8),
-                "VelocidadeMirando": min(0.4, info_serializavel["IV"] / 10 + random.randint(-1, int(info_serializavel["Vel"] / 10)) - 4),
-                "Dificuldade": info_serializavel["Total"] / 10 + random.randint(0, 25),
+                "VelocidadeMirando": max(0.5, info_serializavel["IV"] / 10 + random.randint(-1, int(info_serializavel["Vel"] / 10)) - 4),
+                "Dificuldade": info_serializavel["Total"] / 10 + random.randint(0, 20),
                 "Frutas": 0
             }
         }
+        
 
         return PokemonAtivo
 
