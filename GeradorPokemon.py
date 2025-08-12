@@ -78,9 +78,9 @@ def gerar_pokemon_para_player(loc, players_ativos, pokemons_ativos):
         
         info_serializavel["Nivel"] = int(random.betavariate(2, 5) * 50)
 
-        info_serializavel["%1"] = max(0,info_serializavel["%1"] - int(random.betavariate(2, 4) * 70))
-        info_serializavel["%2"] = max(0,info_serializavel["%2"] - int(random.betavariate(2, 4) * 70))
-        info_serializavel["%3"] = max(0,info_serializavel["%3"] - int(random.betavariate(2, 4) * 70))
+        info_serializavel["%1"] = max(0, info_serializavel["%1"] - int(random.betavariate(2, 4) * 70))
+        info_serializavel["%2"] = max(0, info_serializavel["%2"] - int(random.betavariate(2, 4) * 70))
+        info_serializavel["%3"] = max(0, info_serializavel["%3"] - int(random.betavariate(2, 4) * 70))
 
         P = {0: 1.2, 1: 1.05, 2: 0.9, 3: 0.7}.get(int(info_serializavel["Estagio"]), 1)
 
@@ -93,7 +93,7 @@ def gerar_pokemon_para_player(loc, players_ativos, pokemons_ativos):
             return valor, vmin, vmax
 
         atributos = ["Vida", "Atk", "Def", "SpA", "SpD", "Vel",
-                     "Mag", "Per", "Ene", "EnR", "CrD", "CrC"]
+                    "Mag", "Per", "Ene", "EnR", "CrD", "CrC"]
 
         ivs = []
         for atributo in atributos:
@@ -101,7 +101,7 @@ def gerar_pokemon_para_player(loc, players_ativos, pokemons_ativos):
             valor, minimo, maximo = gerar_valor(base, 0.75, 1.25, P)
             iv = ((valor - minimo) / (maximo - minimo)) * 100
             iv = round(iv, 2)
-            info_serializavel[atributo] = int(valor)
+            # Não altera o valor base, apenas armazena o IV
             info_serializavel[f"IV_{atributo}"] = iv
             ivs.append(iv)
 
@@ -130,14 +130,20 @@ def gerar_pokemon_para_player(loc, players_ativos, pokemons_ativos):
         )
 
         info_serializavel["Total"] = int(total)
-        ID = f"{info_serializavel["Nome"]}{random.randint(1,2000)}"
+        ID = f"{info_serializavel['Nome']}{random.randint(1,2000)}"
         info_serializavel["ID"] = ID
         string_comprimida = CompactarPokemon(info_serializavel)
 
         PokemonAtivo = {
             "info": string_comprimida,
             "loc": [X, Y],
-            "id": ID
+            "id": ID,
+            "extra": {
+                "TamanhoMirando": 55 - info_serializavel["Nivel"] + random.randint(1, 8),
+                "VelocidadeMirando": min(0.4, info_serializavel["IV"] / 10 + random.randint(-1, info_serializavel["Vel"] / 10) - 4),
+                "Dificuldade": info_serializavel["Total"] / 10 + random.randint(0, 25),
+                "Frutas": 0
+            }
         }
 
         return PokemonAtivo

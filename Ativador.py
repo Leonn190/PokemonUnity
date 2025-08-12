@@ -131,3 +131,41 @@ def remover_pokemon():
 
     return jsonify({"mensagem": f"Pokémon {removido['id']} removido com sucesso"}), 200
 
+@pokemons_bp.route('/atualizar-pokemon', methods=['POST'])
+def atualizar_pokemon():
+    dados = request.get_json()
+
+    if not dados:
+        return jsonify({"erro": "JSON inválido ou vazio"}), 400
+
+    # Espera-se que o JSON contenha pelo menos "id" e "extra", e possivelmente "Dados"
+    pokemon_id = dados.get("id")
+    extras = dados.get("extra")
+    dados_compactados = dados.get("Dados")  # pode ser None se não enviado
+
+    if pokemon_id is None:
+        return jsonify({"erro": "ID do pokemon não fornecido"}), 400
+
+    # Buscar o Pokémon na lista
+    pokemon_encontrado = None
+    for pokemon in V.PokemonsAtivos:
+        if pokemon.get("id") == pokemon_id:
+            pokemon_encontrado = pokemon
+            break
+
+    if pokemon_encontrado is None:
+        return jsonify({"erro": "Pokémon não encontrado"}), 404
+
+    # Atualiza o campo "info" com os dados compactados (se vierem no json)
+    if dados_compactados is not None:
+        pokemon_encontrado["info"] = dados_compactados
+
+    # Atualiza o dicionário "extra" — atualiza/insere as chaves recebidas
+    if isinstance(extras, dict):
+        pokemon_encontrado_extra = pokemon_encontrado.get("extra", {})
+        pokemon_encontrado_extra.update(extras)
+        pokemon_encontrado["extra"] = pokemon_encontrado_extra
+    else:
+        return jsonify({"erro": "'extra' deve ser um dicionário"}), 400
+
+    return jsonify({"mensagem": f"Pokémon {pokemon_id} atualizado com sucesso"}), 200
