@@ -117,9 +117,9 @@ def gerar_pokemon_para_player(loc, players_ativos, pokemons_ativos):
             info_serializavel["Mag"],
             info_serializavel["Per"],
             info_serializavel["Ene"],
-            info_serializavel["EnR"],
-            info_serializavel["CrD"],
-            info_serializavel["CrC"]
+            info_serializavel["EnR"] * 2,
+            info_serializavel["CrD"] * 1.5,
+            info_serializavel["CrC"] * 1.5
         ])
 
         total = (
