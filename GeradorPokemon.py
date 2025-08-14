@@ -39,9 +39,9 @@ def GerarPokemon(players_ativos, pokemons_ativos):
     Não retorna nada; adiciona itens em pokemons_ativos.
     """
     RAIO_VISAO = 18
-    MIN_DIST_POKES = 4
+    MIN_DIST_POKES = 6
     MAX_TENTATIVAS_POS = 20
-    LIMITE_POKES_ANEL = 40
+    LIMITE_POKES_ANEL = 25
 
     locs_players = [(data["Loc"][0], data["Loc"][1]) for _, data in players_ativos.items()]
 
@@ -150,7 +150,7 @@ def GerarPokemon(players_ativos, pokemons_ativos):
         )
         info_serializavel["Total"] = int(total)
 
-        ID = f"{info_serializavel['Nome']}{random.randint(1, 2000)}"
+        ID = f"{info_serializavel['Nome']}{random.randint(1, 3000)}"
         info_serializavel["ID"] = ID
 
         string_comprimida = CompactarPokemon(info_serializavel)
@@ -162,10 +162,10 @@ def GerarPokemon(players_ativos, pokemons_ativos):
             "extra": {
                 "TamanhoMirando": 50 - info_serializavel["Nivel"] + random.randint(-5, 10),
                 "VelocidadeMirando": max(
-                    0.9,
+                    1,
                     info_serializavel["IV"] / 10 + random.randint(0, int(max(1, info_serializavel["Vel"]) / 10))
                 ),
-                "Dificuldade": info_serializavel["Total"] * info_serializavel["Nivel"] / 100 + random.randint(0, 30),
+                "Dificuldade": info_serializavel["Total"] * info_serializavel["Nivel"] / 100 + random.randint(5, 20),
                 "Frutas": 0
             }
         }
@@ -185,7 +185,7 @@ def GerarBau(players_ativos, baus_ativos):
     RAIO_VISAO = 18
     ANEL_MAX = RAIO_VISAO * 2  # 36
     MAX_TENTATIVAS_POS = 20
-    MIN_DIST_BAU = 10
+    MIN_DIST_BAU = 12
     LIMITE_BAUS_ANEL = 10  # <- ajuste aqui se quiser outro teto por anel
 
     # distribuição cumulativa (1..6)

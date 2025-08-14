@@ -27,8 +27,8 @@ def VerificarServer():
         GerarPokemon(V.PlayersAtivos, V.PokemonsAtivos)
 
     # 2) Chance de marcar alguém como 'Fugiu'
-    if V.PokemonsAtivos and random.randint(0, 10) > 3:
-        if random.randint(25, max(25, len(V.PlayersAtivos) * 100)) < len(V.PokemonsAtivos):
+    if V.PokemonsAtivos and random.randint(0, 10) > 2:
+        if random.randint(25, 110) < len(V.PokemonsAtivos):
             idx = random.randint(0, len(V.PokemonsAtivos) - 1)
             V.PokemonsAtivos[idx]["Fugiu"] = V.PokemonsAtivos[idx].get("Fugiu", 1)
 
@@ -46,7 +46,7 @@ def VerificarServer():
             if capt:
                 poke["Capturado"] = capt + 1
             # remove se atingir 20
-            if poke.get("Fugiu", 0) >= 50 or poke.get("Capturado", 0) >= 50:
+            if poke.get("Fugiu", 0) >= 40 or poke.get("Capturado", 0) >= 40:
                 continue  # não mantém
         novos_pokes.append(poke)
     V.PokemonsAtivos = novos_pokes
@@ -55,14 +55,14 @@ def VerificarServer():
     for poke in V.PokemonsAtivos:
         if not poke or not poke.get("loc"):
             continue
-        if random.random() < 0.15:
+        if random.random() < 0.1:
             # movimento no eixo X
             if random.choice([True, False]):
-                step_x = random.randint(2, 4) * random.choice([-1, 1])
+                step_x = random.randint(1, 3) * random.choice([-1, 1])
                 poke["loc"][0] += step_x
             # movimento no eixo Y
             if random.choice([True, False]):
-                step_y = random.randint(2, 4) * random.choice([-1, 1])
+                step_y = random.randint(1, 3) * random.choice([-1, 1])
                 poke["loc"][1] += step_y
 
     # 5) Geração de baús baseada nos players (usar loc do "último" processado não faz sentido aqui)
@@ -149,11 +149,7 @@ def Verificar():
 
     # --- Apenas o último player chama o VerificarServer (if/else simples) ---
     # último = maior Code; Codes são strings numéricas
-    try:
-        last_code = max(V.PlayersAtivos.keys(), key=lambda k: int(k))
-    except ValueError:
-        last_code = max(V.PlayersAtivos.keys())  # fallback simples
-    if code == last_code:
+    if V.PlayersAtivos[-1] == V.PlayersAtivos[code]:
         VerificarServer()
 
     return jsonify({
