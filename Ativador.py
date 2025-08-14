@@ -46,7 +46,7 @@ def VerificarServer():
             if capt:
                 poke["Capturado"] = capt + 1
             # remove se atingir 20
-            if poke.get("Fugiu", 0) >= 20 or poke.get("Capturado", 0) >= 20:
+            if poke.get("Fugiu", 0) >= 50 or poke.get("Capturado", 0) >= 50:
                 continue  # não mantém
         novos_pokes.append(poke)
     V.PokemonsAtivos = novos_pokes
@@ -79,7 +79,7 @@ def VerificarServer():
         for bau_id, (bx, by, raridade) in list(V.BausAtivos.items()):
             perto_de_algum = False
             for (px, py) in locs_players:
-                if math.dist((bx, by), (px, py)) <= RAIO_VISAO:
+                if math.dist((bx, by), (px, py)) <= RAIO_VISAO * 2:
                     perto_de_algum = True
                     break
             if not perto_de_algum:
