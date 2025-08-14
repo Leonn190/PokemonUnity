@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from GeradorPokemon import gerar_pokemon_para_player, gerar_bau
+from GeradorPokemon import GerarPokemon, GerarBau
 import random
 import math
 import pandas as pd
@@ -11,6 +11,84 @@ df = pd.read_csv("Pokemons.csv")
 
 pokemons_bp = Blueprint('pokemons', __name__)
 
+RAIO_VISAO = 18
+
+def VerificarServer():
+    """
+    Roda apenas uma vez por ciclo (invocada pelo último player).
+    - Gera novos pokémons e baús
+    - Marca 'Fugiu' aleatoriamente
+    - Incrementa e remove pokémons 'Fugiu'/'Capturado' após 20
+    - Move pokémons (10% de chance, passo 2..4, em X ou Y)
+    - Remove baús que não estejam no raio de visão (18) de nenhum player
+    """
+    # 1) Geração de novos pokémons (usa a função já criada)
+    if len(V.PokemonsAtivos) < 100:
+        GerarPokemon(V.PlayersAtivos, V.PokemonsAtivos)
+
+    # 2) Chance de marcar alguém como 'Fugiu'
+    if V.PokemonsAtivos and random.randint(0, 10) > 3:
+        if random.randint(25, max(25, len(V.PlayersAtivos) * 100)) < len(V.PokemonsAtivos):
+            idx = random.randint(0, len(V.PokemonsAtivos) - 1)
+            V.PokemonsAtivos[idx]["Fugiu"] = V.PokemonsAtivos[idx].get("Fugiu", 0) or 1
+
+    # 3) Incrementar contadores de Fugiu/Capturado e remover ao atingir 20
+    novos_pokes = []
+    for poke in V.PokemonsAtivos:
+        if not poke:
+            continue
+        fugiu = poke.get("Fugiu", 0)
+        capt = poke.get("Capturado", 0)
+        if fugiu or capt:
+            # incrementa 1 por verificação de server
+            if fugiu:
+                poke["Fugiu"] = fugiu + 1
+            if capt:
+                poke["Capturado"] = capt + 1
+            # remove se atingir 20
+            if poke.get("Fugiu", 0) >= 20 or poke.get("Capturado", 0) >= 20:
+                continue  # não mantém
+        novos_pokes.append(poke)
+    V.PokemonsAtivos = novos_pokes
+
+    # 4) Movimento aleatório dos pokémons (10% de chance cada)
+    for poke in V.PokemonsAtivos:
+        if not poke or not poke.get("loc"):
+            continue
+        if random.random() < 0.15:
+            # movimento no eixo X
+            if random.choice([True, False]):
+                step_x = random.randint(2, 4) * random.choice([-1, 1])
+                poke["loc"][0] += step_x
+            # movimento no eixo Y
+            if random.choice([True, False]):
+                step_y = random.randint(2, 4) * random.choice([-1, 1])
+                poke["loc"][1] += step_y
+
+    # 5) Geração de baús baseada nos players (usar loc do "último" processado não faz sentido aqui)
+    #    A estratégia simples: escolher 1 player aleatório como origem da tentativa de gerar um baú
+    if V.PlayersAtivos:
+        GerarBau(V.PlayersAtivos, V.BausAtivos)
+
+    # 6) Remoção de baús: nunca remover os que estiverem no raio 18 de QUALQUER player
+    #    Remover com pequena chance (5%) os demais, para evitar poluição
+    if V.BausAtivos:
+        # precomputar locs dos players
+        locs_players = [tuple(p["Loc"]) for p in V.PlayersAtivos.values() if p and "Loc" in p]
+        remover_ids = []
+        for bau_id, (bx, by, raridade) in list(V.BausAtivos.items()):
+            perto_de_algum = False
+            for (px, py) in locs_players:
+                if math.dist((bx, by), (px, py)) <= RAIO_VISAO:
+                    perto_de_algum = True
+                    break
+            if not perto_de_algum:
+                # baú fora da visão de todos — pode ser removido com chance
+                if random.random() < 0.1:
+                    remover_ids.append(bau_id)
+        for bid in remover_ids:
+            V.BausAtivos.pop(bid, None)
+
 @pokemons_bp.route('/Verificar', methods=['POST'])
 def Verificar():
     data = request.get_json()
@@ -20,61 +98,63 @@ def Verificar():
     code = str(data["Code"])
     dados = data["Dados"]
 
-    V.PlayersAtivos[code].update({"Loc": [posX,posY]})
-    V.PlayersAtivos[code]["Conta"].update({"DadosPassageiros": {
-        "Nome": dados["Nome"],
-        "Skin": dados["Skin"],
-        "Nivel": dados["Nivel"],
-        "Loc": dados["Loc"],
-        "Selecionado": dados["Selecionado"],
-        "Angulo": dados["Angulo"]
-        }})
+    # --- Atualiza dados do jogador ---
+    if code not in V.PlayersAtivos:
+        V.PlayersAtivos[code] = {}
+    V.PlayersAtivos[code].update({"Loc": [posX, posY]})
+    V.PlayersAtivos[code].setdefault("Conta", {})
+    V.PlayersAtivos[code]["Conta"].update({
+        "DadosPassageiros": {
+            "Nome": dados["Nome"],
+            "Skin": dados["Skin"],
+            "Nivel": dados["Nivel"],
+            "Loc": dados["Loc"],
+            "Selecionado": dados["Selecionado"],
+            "Angulo": dados["Angulo"]
+        }
+    })
 
-    # Lista de Pokémon próximos
+    # --- Listas próximas ---
+    # Pokémons
     pokemons_proximos = []
     for pokemon in V.PokemonsAtivos:
         if not pokemon or not pokemon.get("loc"):
             continue
         px, py = pokemon["loc"]
-        distancia = math.sqrt((px - posX) ** 2 + (py - posY) ** 2)
-        if distancia <= raio:
+        if math.dist((px, py), (posX, posY)) <= raio:
             pokemons_proximos.append(pokemon)
 
-    # Lista de jogadores próximos (exceto o próprio jogador)
+    # Players (exceto o próprio)
     players_proximos = []
     for pid, player in V.PlayersAtivos.items():
         if not player or "Loc" not in player or pid == code:
             continue
         px, py = player["Loc"]
-        distancia = math.sqrt((px - posX) ** 2 + (py - posY) ** 2)
-        if distancia <= raio:
+        if math.dist((px, py), (posX, posY)) <= raio:
             dados_passageiros = player.get("Conta", {}).get("DadosPassageiros")
             if dados_passageiros:
                 players_proximos.append(dados_passageiros)
-
-    # Geração de novo Pokémon
-    Gerado = gerar_pokemon_para_player([posX, posY], V.PlayersAtivos, V.PokemonsAtivos, raio)
-    if Gerado:
-        V.PokemonsAtivos.append(Gerado)
-
-    # Remoção randômica
-    if V.PokemonsAtivos and random.randint(20, 100) < len(V.PokemonsAtivos):
-        V.PokemonsAtivos.pop(random.randint(0, len(V.PokemonsAtivos) - 1))
-
-    gerar_bau([posX, posY], V.PlayersAtivos,V.BausAtivos)
 
     # Baús próximos
     baus_proximos = []
     for bau_id, bau_data in V.BausAtivos.items():
         bx, by, raridade = bau_data
-        distancia = math.sqrt((bx - posX) ** 2 + (by - posY) ** 2)
-        if distancia <= raio:
+        if math.dist((bx, by), (posX, posY)) <= raio:
             baus_proximos.append({
                 "ID": bau_id,
                 "X": bx,
                 "Y": by,
                 "Raridade": raridade
             })
+
+    # --- Apenas o último player chama o VerificarServer (if/else simples) ---
+    # último = maior Code; Codes são strings numéricas
+    try:
+        last_code = max(V.PlayersAtivos.keys(), key=lambda k: int(k))
+    except ValueError:
+        last_code = max(V.PlayersAtivos.keys())  # fallback simples
+    if code == last_code:
+        VerificarServer()
 
     return jsonify({
         "pokemons": pokemons_proximos,
