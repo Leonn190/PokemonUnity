@@ -149,7 +149,9 @@ def Verificar():
 
     # --- Apenas o último player chama o VerificarServer (if/else simples) ---
     # último = maior Code; Codes são strings numéricas
-    if V.PlayersAtivos[-1] == V.PlayersAtivos[code]:
+    # Pega a última chave do dicionário
+    ultima_chave = next(reversed(V.PlayersAtivos))
+    if ultima_chave == code:
         VerificarServer()
 
     return jsonify({
