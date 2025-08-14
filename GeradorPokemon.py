@@ -39,9 +39,9 @@ def GerarPokemon(players_ativos, pokemons_ativos):
     Não retorna nada; adiciona itens em pokemons_ativos.
     """
     RAIO_VISAO = 18
-    MIN_DIST_POKES = 6
+    MIN_DIST_POKES = 8
     MAX_TENTATIVAS_POS = 20
-    LIMITE_POKES_ANEL = 25
+    LIMITE_POKES_ANEL = 20
 
     locs_players = [(data["Loc"][0], data["Loc"][1]) for _, data in players_ativos.items()]
 
@@ -105,7 +105,7 @@ def GerarPokemon(players_ativos, pokemons_ativos):
         info_serializavel["%2"] = max(0, info_serializavel["%2"] - int(random.betavariate(2, 4) * 70))
         info_serializavel["%3"] = max(0, info_serializavel["%3"] - int(random.betavariate(2, 4) * 70))
 
-        P = {0: 1.2, 1: 1.05, 2: 0.9, 3: 0.7}.get(int(info_serializavel.get("Estagio", 0)), 1)
+        P = {0: 1.2, 1: 1.05, 2: 0.9, 3: 0.75}.get(int(info_serializavel.get("Estagio", 0)), 1)
 
         def gerar_valor(base, fator_min, fator_max, Pescala):
             vmin = int(base * fator_min)
@@ -182,10 +182,10 @@ def GerarBau(players_ativos, baus_ativos):
       - respeita LIMITE_BAUS_ANEL por player (no anel dele)
     Não retorna nada; apenas muta baus_ativos (dict {id: [x, y, raridade]}).
     """
-    RAIO_VISAO = 18
+    RAIO_VISAO = 20
     ANEL_MAX = RAIO_VISAO * 2  # 36
     MAX_TENTATIVAS_POS = 20
-    MIN_DIST_BAU = 12
+    MIN_DIST_BAU = 15
     LIMITE_BAUS_ANEL = 10  # <- ajuste aqui se quiser outro teto por anel
 
     # distribuição cumulativa (1..6)

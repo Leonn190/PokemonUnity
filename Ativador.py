@@ -28,7 +28,7 @@ def VerificarServer():
 
     # 2) Chance de marcar alguém como 'Fugiu'
     if V.PokemonsAtivos and random.randint(0, 10) > 2:
-        if random.randint(25, 110) < len(V.PokemonsAtivos):
+        if random.randint(25, 120) < len(V.PokemonsAtivos):
             idx = random.randint(0, len(V.PokemonsAtivos) - 1)
             V.PokemonsAtivos[idx]["Fugiu"] = V.PokemonsAtivos[idx].get("Fugiu", 1)
 
@@ -55,7 +55,7 @@ def VerificarServer():
     for poke in V.PokemonsAtivos:
         if not poke or not poke.get("loc"):
             continue
-        if random.random() < 0.1:
+        if random.random() < 0.07:
             # movimento no eixo X
             if random.choice([True, False]):
                 step_x = random.randint(1, 3) * random.choice([-1, 1])
