@@ -30,7 +30,7 @@ def VerificarServer():
     if V.PokemonsAtivos and random.randint(0, 10) > 3:
         if random.randint(25, max(25, len(V.PlayersAtivos) * 100)) < len(V.PokemonsAtivos):
             idx = random.randint(0, len(V.PokemonsAtivos) - 1)
-            V.PokemonsAtivos[idx]["Fugiu"] = V.PokemonsAtivos[idx].get("Fugiu", 0) or 1
+            V.PokemonsAtivos[idx]["Fugiu"] = V.PokemonsAtivos[idx].get("Fugiu", 1)
 
     # 3) Incrementar contadores de Fugiu/Capturado e remover ao atingir 20
     novos_pokes = []
