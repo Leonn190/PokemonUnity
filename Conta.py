@@ -96,7 +96,15 @@ def sair_conta():
     
 @conta_bp.route('/contas', methods=['GET'])
 def listar_contas():
+    global V
     contas = Player.query.all()
     contas_dict = [conta.to_dict() for conta in contas]
-    return jsonify({'contas': contas_dict}), 200
+
+    # apenas os códigos das contas ativas
+    try:
+        ativos = list(getattr(V, "PlayersAtivos", {}).keys())
+    except Exception:
+        ativos = []
+
+    return jsonify({'contas': contas_dict, 'ativos': ativos}), 200
 
