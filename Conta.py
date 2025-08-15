@@ -3,6 +3,8 @@ import Variaveis as V # Importa a instância compartilhada
 from flask import request, jsonify
 from CriaMapa import Mapa
 import json
+import os
+import socket
 
 conta_bp = Blueprint('conta', __name__)
 
@@ -84,27 +86,44 @@ def sair_conta():
     data = request.get_json()
 
     if not data or 'codigo' not in data:
-        return jsonify({'erro': 'É necessário enviar um código'}), 400
+        return jsonify({
+            'erro': 'É necessário enviar um código',
+            'worker_pid': os.getpid(),
+            'worker_host': socket.gethostname()
+        }), 400
 
     codigo = data['codigo']
 
     if codigo in V.PlayersAtivos:
         del V.PlayersAtivos[codigo]  # Remove a entrada do dicionário
-        return jsonify({'mensagem': 'Conta desconectada', 'ativos': list(V.PlayersAtivos.keys())}), 200
+        return jsonify({
+            'mensagem': 'Conta desconectada',
+            'ativos': list(V.PlayersAtivos.keys()),
+            'worker_pid': os.getpid(),
+            'worker_host': socket.gethostname()
+        }), 200
     else:
-        return jsonify({'mensagem': 'Conta não estava ativa'}), 202
-    
+        return jsonify({
+            'mensagem': 'Conta não estava ativa',
+            'ativos': list(V.PlayersAtivos.keys()),
+            'worker_pid': os.getpid(),
+            'worker_host': socket.gethostname()
+        }), 202
+
 @conta_bp.route('/contas', methods=['GET'])
 def listar_contas():
-    global V
     contas = Player.query.all()
     contas_dict = [conta.to_dict() for conta in contas]
 
-    # apenas os códigos das contas ativas
     try:
         ativos = list(getattr(V, "PlayersAtivos", {}).keys())
     except Exception:
         ativos = []
 
-    return jsonify({'contas': contas_dict, 'ativos': ativos}), 200
+    return jsonify({
+        'contas': contas_dict,
+        'ativos': ativos,
+        'worker_pid': os.getpid(),
+        'worker_host': socket.gethostname()
+    }), 200
 
