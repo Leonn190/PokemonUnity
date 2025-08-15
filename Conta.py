@@ -38,22 +38,25 @@ def acessar_conta():
         player = Player.query.filter_by(codigo=codigo).first()
         if player:
             Conteudo = player.to_dict()
+            dados = Conteudo.get("dados", {})
+            # protege "Loc" para não quebrar
             V.PlayersAtivos[codigo] = {
                 "Code": codigo,
-                "Conta": Conteudo["dados"],
-                "Loc": Conteudo["dados"]["Loc"]
+                "Conta": dados,
+                "Loc": dados.get("Loc")  # evita KeyError
             }
             return jsonify({
                 'mensagem': 'Conta acessada com sucesso',
                 'ativos': list(V.PlayersAtivos.keys()),
-                'conta': player.to_dict()
+                'conta': Conteudo           # mantém o mesmo formato que você já usa aqui
             }), 201
         return jsonify({'mensagem': 'Conta ainda não registrada', 'ativos': list(V.PlayersAtivos.keys())}), 202
     else:
+        # >>> chave correta é "Conta"
         return jsonify({
             'mensagem': 'Conta já estava ativa',
             'ativos': list(V.PlayersAtivos.keys()),
-            'conta': V.PlayersAtivos[codigo]["Conteudo"]
+            'conta': V.PlayersAtivos[codigo]["Conta"]
         }), 200
 
 @conta_bp.route('/salvar', methods=['POST'])
