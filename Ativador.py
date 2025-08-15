@@ -100,7 +100,7 @@ def Verificar():
 
     # --- Atualiza dados do jogador ---
     if code not in V.PlayersAtivos:
-        V.PlayersAtivos[code] = {}
+        return '', 204
     V.PlayersAtivos[code].update({"Loc": [posX, posY]})
     V.PlayersAtivos[code].setdefault("Conta", {})
     V.PlayersAtivos[code]["Conta"].update({
