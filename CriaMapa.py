@@ -12,19 +12,6 @@ class Mapa(V.db.Model):
     biomas_json = Column(Text, nullable=False)
     objetos_json = Column(Text, nullable=False)
 
-OBJ_CONFIG = {
-    0: {"nome": "Árvore",     "spawn_rate": 0.06, "dist_min": 3, "biomas": [2,3,4,5,7]}, 
-    1: {"nome": "Pedra",      "spawn_rate": 0.05, "dist_min": 3, "biomas": [2,3,4,5,6,7]},
-    2: {"nome": "Arbusto",    "spawn_rate": 0.04, "dist_min": 2, "biomas": [2,3,4,5,6,7]},
-    3: {"nome": "Cobre",      "spawn_rate": 0.01, "dist_min": 4, "biomas": [2,3,4,5,6,7]},
-    4: {"nome": "Ouro",       "spawn_rate": 0.004,"dist_min": 5, "biomas": [2,3,5]},       # planície, floresta, neve
-    5: {"nome": "Diamante",   "spawn_rate": 0.003,"dist_min": 5, "biomas": [5]},          # só neve
-    6: {"nome": "Esmeralda",  "spawn_rate": 0.003,"dist_min": 5, "biomas": [4]},          # só deserto
-    7: {"nome": "Rubi",       "spawn_rate": 0.003,"dist_min": 5, "biomas": [6]},          # só vulcão
-    8: {"nome": "Ametista",   "spawn_rate": 0.003,"dist_min": 5, "biomas": [7]},          # só terra mágica
-    9: {"nome": "Poça de Lava","spawn_rate":0.008,"dist_min": 8, "biomas": [6]},          # só vulcão
-}
-
 BIOME_ID = {
     "OCEAN":        0,
     "LAKE":         1,
@@ -528,7 +515,32 @@ def GerarMapa(W=1200, H=1200, SEED=random.randint(0,5000)):
 
     return biomes.astype(int).tolist()
 
-def GeraGridObjetos(grid_biomas, SEED=None):
+OBJ_CONFIG = {
+    0:  {"nome":"Árvore",       "spawn_rate":0.06,  "dist_min":4, "biomas":[2,6,7]},  # plain, vulcão, terra mágica
+    1:  {"nome":"Palmeira",     "spawn_rate":0.06,  "dist_min":5, "biomas":[4]},      # deserto
+    2:  {"nome":"Arvore2",      "spawn_rate":0.06,  "dist_min":3, "biomas":[3]},      # floresta
+    3:  {"nome":"Pinheiro",     "spawn_rate":0.06,  "dist_min":3, "biomas":[5]},      # neve
+
+    4:  {"nome":"Ouro",         "spawn_rate":0.004, "dist_min":4, "biomas":[2,3,5]},  # raros 4..8
+    5:  {"nome":"Diamante",     "spawn_rate":0.003, "dist_min":5, "biomas":[5]},
+    6:  {"nome":"Esmeralda",    "spawn_rate":0.003, "dist_min":5, "biomas":[4]},
+    7:  {"nome":"Rubi",         "spawn_rate":0.003, "dist_min":5, "biomas":[6]},
+    8:  {"nome":"Ametista",     "spawn_rate":0.003, "dist_min":5, "biomas":[7]},
+
+    9:  {"nome":"Cobre",        "spawn_rate":0.01,  "dist_min":4, "biomas":[2,3,4,5,6,7]},
+    10: {"nome":"Pedra",        "spawn_rate":0.05,  "dist_min":3, "biomas":[2,3,4,5,6,7]},
+    11: {"nome":"Arbusto",      "spawn_rate":0.04,  "dist_min":2, "biomas":[2,3,4,5,6,7]},
+    12: {"nome":"Poça de Lava", "spawn_rate":0.008, "dist_min":9, "biomas":[6]},
+}
+
+def GeraGridObjetos(grid_biomas, SEED=None, spawn_obj_rate=0.15):
+    """
+    Gera grid de objetos.
+    - Primeiro passa no sorteio global (spawn_obj_rate) por tile elegível.
+    - Depois escolhe 1 objeto via roleta ponderada pelos spawn_rate dos objetos válidos para o bioma.
+    - Respeita a distância mínima por objeto.
+    - Garante ao menos 2 ocorrências de cada mineral raro (4..8).
+    """
     if SEED is not None:
         random.seed(SEED)
     
@@ -537,33 +549,68 @@ def GeraGridObjetos(grid_biomas, SEED=None):
     
     grid_objetos = [[-1 for _ in range(largura)] for _ in range(altura)]  # -1 = vazio
 
+    # Usa distância^2 para evitar sqrt (mesma lógica: bloqueia se dist^2 < dist_min^2)
     def tem_objeto_proximo(x, y, dist_min):
-        for dy in range(-dist_min, dist_min + 1):
-            for dx in range(-dist_min, dist_min + 1):
-                nx, ny = x + dx, y + dy
-                if 0 <= nx < largura and 0 <= ny < altura:
-                    if grid_objetos[ny][nx] != -1:
-                        distancia = math.sqrt(dx**2 + dy**2)
-                        if distancia < dist_min:
-                            return True
+        if dist_min <= 0:
+            return False
+        dm2 = dist_min * dist_min
+        y0 = max(0, y - dist_min)
+        y1 = min(altura - 1, y + dist_min)
+        x0 = max(0, x - dist_min)
+        x1 = min(largura - 1, x + dist_min)
+        for ny in range(y0, y1 + 1):
+            dy = ny - y
+            for nx in range(x0, x1 + 1):
+                if grid_objetos[ny][nx] == -1:
+                    continue
+                dx = nx - x
+                if dx*dx + dy*dy < dm2:
+                    return True
         return False
 
-    # ---- 1ª passada: geração probabilística normal ----
+    # Roleta ponderada; retorna (obj_id, cfg) ou None
+    def sorteia_objeto_para_bioma(bioma, x, y):
+        candidatos = [(oid, cfg) for oid, cfg in OBJ_CONFIG.items() if bioma in cfg["biomas"]]
+        if not candidatos:
+            return None
+        # Tenta múltiplas vezes removendo opções que falham por distância
+        restantes = candidatos[:]
+        while restantes:
+            pesos = [cfg["spawn_rate"] for _, cfg in restantes]
+            total = sum(pesos)
+            if total <= 0:
+                return None
+            r = random.random() * total
+            acc = 0.0
+            pick_i = 0
+            for i, ((oid, cfg), w) in enumerate(zip(restantes, pesos)):
+                acc += w
+                if r <= acc:
+                    pick_i = i
+                    break
+            oid, cfg = restantes[pick_i]
+            # Respeita a distância do escolhido
+            if not tem_objeto_proximo(x, y, cfg["dist_min"]):
+                return oid, cfg
+            # Remove este candidato e tenta outro
+            restantes.pop(pick_i)
+        return None
+
+    # ---- 1ª passada: tentativa por tile elegível com sorteio global + roleta por objeto ----
     for y in range(altura):
         for x in range(largura):
             bioma = grid_biomas[y][x]
-
             # pula oceano e lago
             if bioma in (BIOME_ID["OCEAN"], BIOME_ID["LAKE"]):
                 continue
-
-            for obj_id, cfg in OBJ_CONFIG.items():
-                if bioma not in cfg["biomas"]:
-                    continue
-                if random.random() < cfg["spawn_rate"]:
-                    if not tem_objeto_proximo(x, y, cfg["dist_min"]):
-                        grid_objetos[y][x] = obj_id
-                    break  # garante só 1 objeto por tile
+            # primeiro: sorteio global se este tile terá objeto
+            if random.random() >= spawn_obj_rate:
+                continue
+            pick = sorteia_objeto_para_bioma(bioma, x, y)
+            if pick is None:
+                continue
+            oid, cfg = pick
+            grid_objetos[y][x] = oid
 
     # ---- 2ª passada: garantir pelo menos 2 spawns de cada minério raro ----
     raros = [4,5,6,7,8]  # ouro, diamante, esmeralda, rubi, ametista
@@ -571,20 +618,20 @@ def GeraGridObjetos(grid_biomas, SEED=None):
         count = sum(row.count(obj_id) for row in grid_objetos)
         needed = max(0, 2 - count)
         if needed > 0:
-            # força spawn em locais válidos
             for _ in range(needed):
                 tentativas = 0
                 colocado = False
-                while tentativas < 1000 and not colocado:
+                dist_min = OBJ_CONFIG[obj_id]["dist_min"]
+                while tentativas < 2000 and not colocado:
                     x = random.randint(0, largura-1)
                     y = random.randint(0, altura-1)
                     bioma = grid_biomas[y][x]
                     if bioma in OBJ_CONFIG[obj_id]["biomas"] and grid_objetos[y][x] == -1:
-                        if not tem_objeto_proximo(x, y, OBJ_CONFIG[obj_id]["dist_min"]):
+                        if not tem_objeto_proximo(x, y, dist_min):
                             grid_objetos[y][x] = obj_id
                             colocado = True
                     tentativas += 1
-
+                # se não conseguir em 2000 tentativas, ignora (evita loop infinito em mapas minúsculos/lotados)
     return grid_objetos
 
 def gerar_e_salvar_mapa(largura, altura, seed=random.randint(0,5000)):
