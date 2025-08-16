@@ -190,84 +190,104 @@ def GerarMapa(W=1200, H=1200, SEED=random.randint(0,5000)):
 
     def fill_holes(mask: np.ndarray) -> np.ndarray:
         """
-        Preenche buracos em 'mask' (True = sólido). Mesma lógica da tua versão:
-        flood-fill 4-conectado no complemento a partir das bordas, e retorna
-        mask | holes. Implementado com fila pré-alocada (int32) para reduzir
-        drasticamente overhead/memória. Resultado é idêntico.
+        Preenche buracos em 'mask' (True = sólido).
+        Mesma lógica: flood-fill 4-conectado do complemento (~mask) a partir das bordas,
+        depois retorna mask | holes. Implementação por SCANLINE (intervalos), que
+        reduz drasticamente o uso de fila/memória. Resultado = idêntico ao BFS por pixel.
         """
-        # Assegura bool contíguo para indexação rápida
+        # Garante bool contíguo
         mask = np.ascontiguousarray(mask, dtype=bool)
         h, w = mask.shape
-        mflat = mask.ravel()
-        N = mflat.size
+        if h == 0 or w == 0:
+            return mask
 
-        outside = np.zeros(N, dtype=bool)
+        comp = ~mask                    # regiões "vazias" a serem analisadas
+        outside = np.zeros_like(mask)   # marca o que é alcançável a partir da borda (fora dos buracos)
 
-        # Fila circular pré-alocada
-        queue = np.empty(N, dtype=np.int32)
-        head = 0
-        tail = 0
+        q = deque()
 
-        def push(i: int):
-            nonlocal tail
-            outside[i] = True
-            queue[tail] = i
-            tail += 1
+        def push_span(y: int, x: int):
+            """Expande horizontalmente a partir (y,x) sobre comp & ~outside, marca e enfileira [L,R)."""
+            row_comp = comp[y]
+            row_out  = outside[y]
+            # anda pra esquerda
+            L = x
+            while L > 0 and row_comp[L-1] and not row_out[L-1]:
+                L -= 1
+            # anda pra direita
+            R = x + 1
+            while R < w and row_comp[R] and not row_out[R]:
+                R += 1
+            # marca o intervalo como outside e enfileira
+            row_out[L:R] = True
+            q.append((y, L, R))
 
-        # --- seed nas bordas do complemento (~mask) ---
+        # ---- Semeadura nas bordas ----
         # Topo
-        top = ~mflat[:w]
-        if top.any():
-            idxs = np.flatnonzero(top)
-            for idx in idxs:
-                if not outside[idx]:
-                    push(int(idx))
+        y = 0
+        row_comp = comp[y]; row_out = outside[y]
+        x = 0
+        while x < w:
+            if row_comp[x] and not row_out[x]:
+                push_span(y, x)
+                # pula direto o intervalo recém marcado
+                while x < w and row_out[x]:
+                    x += 1
+            else:
+                x += 1
+
         # Base
-        off = (h - 1) * w
-        bot = ~mflat[off:off + w]
-        if bot.any():
-            idxs = off + np.flatnonzero(bot)
-            for idx in idxs:
-                if not outside[idx]:
-                    push(int(idx))
-        # Laterais
+        y = h - 1
+        row_comp = comp[y]; row_out = outside[y]
+        x = 0
+        while x < w:
+            if row_comp[x] and not row_out[x]:
+                push_span(y, x)
+                while x < w and row_out[x]:
+                    x += 1
+            else:
+                x += 1
+
+        # Esquerda/Direita (garante atingir componentes que tocam só as colunas)
         for y in range(h):
-            iL = y * w
-            if (not mflat[iL]) and (not outside[iL]):
-                push(iL)
-            iR = iL + (w - 1)
-            if (not mflat[iR]) and (not outside[iR]):
-                push(iR)
+            # esquerda
+            if comp[y, 0] and not outside[y, 0]:
+                push_span(y, 0)
+            # direita
+            if comp[y, w-1] and not outside[y, w-1]:
+                push_span(y, w-1)
 
-        # --- BFS 4-conectado no complemento ---
-        while head < tail:
-            i = int(queue[head]); head += 1
-            x = i % w
-            y = i // w
+        # ---- Flood fill por intervalos ----
+        while q:
+            y, L, R = q.popleft()
 
-            # left
-            if x > 0:
-                j = i - 1
-                if (not mflat[j]) and (not outside[j]):
-                    push(j)
-            # right
-            if x < w - 1:
-                j = i + 1
-                if (not mflat[j]) and (not outside[j]):
-                    push(j)
-            # up
+            # linha de cima
             if y > 0:
-                j = i - w
-                if (not mflat[j]) and (not outside[j]):
-                    push(j)
-            # down
-            if y < h - 1:
-                j = i + w
-                if (not mflat[j]) and (not outside[j]):
-                    push(j)
+                row_comp = comp[y-1]; row_out = outside[y-1]
+                x = L
+                # varre apenas a faixa [L, R) — suficiente para 4-conectividade
+                while x < R:
+                    if row_comp[x] and not row_out[x]:
+                        push_span(y-1, x)
+                        # avança até o fim do intervalo recém marcado
+                        while x < w and row_out[x]:
+                            x += 1
+                    else:
+                        x += 1
 
-        # holes = (~mask) & (~outside)  =>  retorno = mask | holes
-        outside = outside.reshape(h, w)
+            # linha de baixo
+            if y + 1 < h:
+                row_comp = comp[y+1]; row_out = outside[y+1]
+                x = L
+                while x < R:
+                    if row_comp[x] and not row_out[x]:
+                        push_span(y+1, x)
+                        while x < w and row_out[x]:
+                            x += 1
+                    else:
+                        x += 1
+
+        # holes = (~mask) & (~outside)  -> retorno = mask | holes
         return mask | (~outside)
 
     # ===================== Lagos =====================
