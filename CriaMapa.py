@@ -634,7 +634,7 @@ OBJ_CONFIG = {
     12: {"nome":"Poça de Lava", "spawn_rate":0.008, "dist_min":9, "biomas":[6]},
 }
 
-def GeraGridObjetos(grid_biomas, SEED=None, spawn_obj_rate=0.1):
+def GeraGridObjetos(grid_biomas, SEED=None, spawn_obj_rate=0.15):
     """
     Versão otimizada (CPU/memória) mantendo a lógica original:
     - sorteio global com mitigação A/K;
