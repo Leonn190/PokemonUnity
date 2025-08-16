@@ -636,106 +636,161 @@ OBJ_CONFIG = {
 
 def GeraGridObjetos(grid_biomas, SEED=None, spawn_obj_rate=0.1):
     """
-    Gera grid de objetos.
-    - Sorteio global por tile usa spawn_obj_rate * (A/K),
-      onde K = qtd. objetos permitidos pelo bioma, A = qtd. que passam dist_min.
-    - Depois escolhe 1 objeto por roleta ponderada (spawn_rate) entre os que passaram dist_min.
-    - Garante ao menos 2 ocorrências de cada mineral raro (IDs 4..8).
+    Otimizada para grandes mapas:
+    - Mantém exatamente as regras: sorteio global com mitigação A/K, roleta por spawn_rate,
+      distância euclidiana verdadeira (dx^2+dy^2 < dist_min^2), e garante >=2 spawns de cada raro (4..8).
+    - Evita varredura de janela: usa mapas de proibição por raio (3,4,5,6,9) e 'carimbos' de disco.
     """
     if SEED is not None:
         random.seed(SEED)
 
-    altura = len(grid_biomas)
-    largura = len(grid_biomas[0]) if altura > 0 else 0
-    grid_objetos = [[-1 for _ in range(largura)] for _ in range(altura)]  # -1 = vazio
+    # --- prepara entradas como NumPy para indexação rápida ---
+    import numpy as np
+    H = len(grid_biomas)
+    W = len(grid_biomas[0]) if H else 0
+    biome = np.asarray(grid_biomas, dtype=np.uint8, order="C")
+    objetos = np.full((H, W), -1, dtype=np.int16)  # grid final
 
-    def tem_objeto_proximo(x, y, dist_min):
-        # usa dist^2: bloqueia se dx^2+dy^2 < dist_min^2 (igual é permitido)
-        if dist_min <= 0:
-            return False
-        dm2 = dist_min * dist_min
-        y0 = max(0, y - dist_min)
-        y1 = min(altura - 1, y + dist_min)
-        x0 = max(0, x - dist_min)
-        x1 = min(largura - 1, x + dist_min)
-        for ny in range(y0, y1 + 1):
-            dy = ny - y
-            for nx in range(x0, x1 + 1):
-                if grid_objetos[ny][nx] == -1:
+    # --- precomputos: distâncias únicas e estêncil por scanline (intervalos horizontais) ---
+    dist_unicas = sorted({cfg["dist_min"] for cfg in OBJ_CONFIG.values()})
+    # dx_max_por_dy[r] -> lista de (dy, dx_max) para |dy| < r e dx^2 + dy^2 < r^2
+    dx_max_por_dy = {}
+    for r in dist_unicas:
+        dm2 = r * r
+        linhas = []
+        # só há pontos válidos para |dy| <= r-1
+        for dy in range(-(r - 1), r):
+            t = dm2 - dy * dy
+            if t <= 0:
+                continue
+            # dx^2 < t  =>  |dx| <= floor(sqrt(t-ε))
+            dx_max = int(math.sqrt(t - 1e-9))
+            if dx_max > 0:
+                linhas.append((dy, dx_max))
+        dx_max_por_dy[r] = linhas
+
+    # mapas de proibição por raio (False = permitido, True = proibido)
+    forbid = {r: np.zeros((H, W), dtype=bool) for r in dist_unicas}
+
+    def carimbar_todos_raios(y, x):
+        """Após colocar QUALQUER objeto, carimba o disco correspondente em TODOS
+        os mapas de raio r (pois candidato futuro com raio r é bloqueado por qualquer objeto a < r)."""
+        for r in dist_unicas:
+            for dy, dxm in dx_max_por_dy[r]:
+                yy = y + dy
+                if yy < 0 or yy >= H:
                     continue
-                dx = nx - x
-                if dx*dx + dy*dy < dm2:
-                    return True
-        return False
+                x0 = x - dxm
+                if x0 < 0: x0 = 0
+                x1 = x + dxm
+                if x1 >= W: x1 = W - 1
+                # marca [x0 .. x1] como proibido
+                forbid[r][yy, x0:x1 + 1] = True
 
-    def weighted_choice(candidatos):
-        # candidatos: lista [(oid, cfg), ...] já filtrada por dist_min
-        total = 0.0
-        for _, cfg in candidatos:
-            total += cfg["spawn_rate"]
-        if total <= 0.0:
-            return None
-        r = random.random() * total
-        acc = 0.0
-        for oid, cfg in candidatos:
-            acc += cfg["spawn_rate"]
-            if r <= acc:
-                return oid
-        return candidatos[-1][0]
+    # --- pré-index: objetos válidos por bioma, com pesos e raio por candidato ---
+    by_biome = {}
+    for b in range(0, 9):  # 0..8
+        ids = []
+        pesos = []
+        raios = []
+        for oid, cfg in OBJ_CONFIG.items():
+            if b in cfg["biomas"]:
+                ids.append(oid)
+                pesos.append(float(cfg["spawn_rate"]))
+                raios.append(int(cfg["dist_min"]))
+        by_biome[b] = (
+            np.array(ids, dtype=np.int16),
+            np.array(pesos, dtype=np.float64),
+            np.array(raios, dtype=np.int16),
+        )
 
-    # ---- 1ª passada: spawn com mitigação A/K ----
-    for y in range(altura):
-        for x in range(largura):
-            bioma = grid_biomas[y][x]
-            # pula oceano e lago
-            if bioma in (BIOME_ID["OCEAN"], BIOME_ID["LAKE"]):
+    # máscara de água para pular rápido
+    agua = (biome == BIOME_ID["OCEAN"]) | (biome == BIOME_ID["LAKE"])
+
+    # --- 1ª passada: por tile, com mitigação A/K e roleta ponderada entre os que passam dist ---
+    for y in range(H):
+        # micro otimização local
+        b_row = biome[y]
+        o_row = objetos[y]
+        for x in range(W):
+            if agua[y, x]:
                 continue
 
-            # candidatos permitidos pelo bioma (K)
-            candidatos_bioma = [(oid, cfg) for oid, cfg in OBJ_CONFIG.items() if bioma in cfg["biomas"]]
-            K = len(candidatos_bioma)
+            b = int(b_row[x])
+            ids, pesos, raios = by_biome[b]
+            K = ids.size
             if K == 0:
                 continue
 
-            # candidatos que também passam a distância (A)
-            candidatos_livres = [(oid, cfg) for oid, cfg in candidatos_bioma
-                                 if not tem_objeto_proximo(x, y, cfg["dist_min"])]
-            A = len(candidatos_livres)
+            # checa candidatos que passam a distância (usa forbid[raio])
+            # A = #que passam
+            permitidos_mask = np.array([not forbid[int(r)][y, x] for r in raios], dtype=bool)
+            A = int(permitidos_mask.sum())
             if A == 0:
                 continue
 
-            # probabilidade efetiva reduzida por (A/K)
-            spawn_eff = spawn_obj_rate * (A / K)
-            if random.random() >= spawn_eff:
+            # mitigação: spawn efetivo = spawn_obj_rate * (A/K)
+            if random.random() >= (spawn_obj_rate * (A / K)):
                 continue
 
-            # escolhe 1 objeto por roleta entre os livres
-            oid = weighted_choice(candidatos_livres)
-            if oid is not None:
-                grid_objetos[y][x] = oid
+            # roleta entre os que passam
+            if A == K:
+                pesos_loc = pesos
+                ids_loc = ids
+                raios_loc = raios
+            else:
+                pesos_loc = pesos[permitidos_mask]
+                ids_loc = ids[permitidos_mask]
+                raios_loc = raios[permitidos_mask]
 
-    # ---- 2ª passada: garantir pelo menos 2 spawns de cada minério raro ----
-    raros = [4, 5, 6, 7, 8]  # ouro, diamante, esmeralda, rubi, ametista
-    for obj_id in raros:
-        count = sum(row.count(obj_id) for row in grid_objetos)
-        needed = max(0, 2 - count)
-        if needed > 0:
-            dist_min = OBJ_CONFIG[obj_id]["dist_min"]
-            for _ in range(needed):
-                tentativas = 0
-                colocado = False
-                while tentativas < 2000 and not colocado:
-                    x = random.randint(0, largura - 1)
-                    y = random.randint(0, altura - 1)
-                    bioma = grid_biomas[y][x]
-                    if bioma in OBJ_CONFIG[obj_id]["biomas"] and grid_objetos[y][x] == -1:
-                        if not tem_objeto_proximo(x, y, dist_min):
-                            grid_objetos[y][x] = obj_id
-                            colocado = True
-                    tentativas += 1
-                # se não couber, segue; evita loop infinito em mapas lotados
+            tot = float(pesos_loc.sum())
+            if tot <= 0.0:
+                continue
 
-    return grid_objetos
+            r = random.random() * tot
+            acc = 0.0
+            pick_idx = 0
+            for i, wgt in enumerate(pesos_loc):
+                acc += wgt
+                if r <= acc:
+                    pick_idx = i
+                    break
+
+            oid = int(ids_loc[pick_idx])
+            o_row[x] = oid  # coloca
+            # carimba proibição para TODOS os raios
+            carimbar_todos_raios(y, x)
+
+    # --- 2ª passada: garantir ao menos 2 spawns dos raros 4..8 ---
+    raros = [4, 5, 6, 7, 8]
+    for oid in raros:
+        # conta existentes
+        count = int((objetos == oid).sum())
+        need = max(0, 2 - count)
+        if need <= 0:
+            continue
+        dist_min = int(OBJ_CONFIG[oid]["dist_min"])
+        biomas_ok = set(OBJ_CONFIG[oid]["biomas"])
+
+        tentativas_max = 2000
+        while need > 0 and tentativas_max > 0:
+            tentativas_max -= 1
+            x = random.randint(0, W - 1)
+            y = random.randint(0, H - 1)
+            if objetos[y, x] != -1:
+                continue
+            if int(biome[y, x]) not in biomas_ok:
+                continue
+            # respeita distância do raro (usa forbid[dist_min])
+            if forbid[dist_min][y, x]:
+                continue
+            objetos[y, x] = oid
+            carimbar_todos_raios(y, x)
+            need -= 1
+        # se ficar faltando, deixa quieto (igual tua proteção contra loop infinito)
+
+    # retorna lista de listas (compatível com seu JSON)
+    return objetos.astype(int).tolist()
 
 def gerar_e_salvar_mapa(largura, altura, seed=random.randint(0,5000)):
     # Gerar as grids
