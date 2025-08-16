@@ -12,19 +12,6 @@ class Mapa(V.db.Model):
     biomas_json = Column(Text, nullable=False)
     objetos_json = Column(Text, nullable=False)
 
-# ===================== IDs numéricos de bioma =====================
-BIOME_ID = {
-        "OCEAN":        0,
-        "LAKE":         1,
-        "PLAIN":        2,
-        "FOREST":       3,
-        "DESERT":       4,
-        "SNOW":         5,
-        "VULCANO":      6,
-        "TERRA_MAGICA": 7,
-        "PANTANO":      8,
-    }
-
 OBJ_CONFIG = {
     0: {"nome": "Árvore",     "spawn_rate": 0.06, "dist_min": 3, "biomas": [2,3,4,5,7]}, 
     1: {"nome": "Pedra",      "spawn_rate": 0.05, "dist_min": 3, "biomas": [2,3,4,5,6,7]},
@@ -38,16 +25,28 @@ OBJ_CONFIG = {
     9: {"nome": "Poça de Lava","spawn_rate":0.008,"dist_min": 8, "biomas": [6]},          # só vulcão
 }
 
+BIOME_ID = {
+    "OCEAN":        0,
+    "LAKE":         1,
+    "PLAIN":        2,
+    "FOREST":       3,
+    "DESERT":       4,
+    "SNOW":         5,
+    "VULCANO":      6,
+    "TERRA_MAGICA": 7,
+    "PANTANO":      8,
+}
+
 def GerarMapa(W=1200, H=1200, SEED=random.randint(0,5000)):
     # ===================== Parâmetros principais / TUNING =====================
     random.seed(SEED)
     np.random.seed(SEED)
 
     # ---------- LAND vs OCEAN ----------
-    SEA_LEVEL_BASE = 0.45     # nível do mar “neutro”
-    LAND_MASS_BIAS = 0.00     # + => MAIS OCEANO (sobe o mar) / - => MAIS TERRA (desce o mar)
+    SEA_LEVEL_BASE = 0.45
+    LAND_MASS_BIAS = 0.00
     SEA_LEVEL = float(np.clip(SEA_LEVEL_BASE + LAND_MASS_BIAS, 0.02, 0.98))
-    MOUNTAIN_LEVEL = 0.75     # chão alto
+    MOUNTAIN_LEVEL = 0.75
 
     # ====== LAGOS (controle por rate) ======
     LAKE_RATE = 0.45
@@ -230,93 +229,90 @@ def GerarMapa(W=1200, H=1200, SEED=random.randint(0,5000)):
             lakes = open_bool(lakes, 1)
         return lakes
 
-    # ===================== Biomas comuns =====================
+    # ===================== Biomas comuns (numéricos) =====================
     def assign_biomes_base(elev, lakes, temp, moist):
         h, w = elev.shape
-        biomes = np.full((h, w), fill_value="PLAIN", dtype=object)
+        biomes = np.full((h, w), BIOME_ID["PLAIN"], dtype=np.uint8)
         ocean = elev < SEA_LEVEL
-        biomes[ocean] = "OCEAN"
-        biomes[lakes & ~ocean] = "LAKE"
+        biomes[ocean] = BIOME_ID["OCEAN"]
+        biomes[lakes & ~ocean] = BIOME_ID["LAKE"]
         land = ~ocean & ~lakes
 
         mask_snow = (temp <= TEMP_SNOW_MAX) & land
-        biomes[mask_snow] = "SNOW"
+        biomes[mask_snow] = BIOME_ID["SNOW"]
 
         mask_desert = (temp >= TEMP_HOT_MIN) & (moist <= MOIST_DESERT_MAX) & land
-        biomes[mask_desert] = "DESERT"
+        biomes[mask_desert] = BIOME_ID["DESERT"]
 
         mask_forest = (moist >= MOIST_FOREST_MIN) & land & ~mask_desert & ~mask_snow
-        biomes[mask_forest] = "FOREST"
-
+        biomes[mask_forest] = BIOME_ID["FOREST"]
         return biomes
 
-    # ===================== Enforce mínimos =====================
+    # ===================== Enforce mínimos (numéricos) =====================
     def enforce_min_biomes(biomes, elev, temp, moist):
         out = biomes.copy()
-        ocean = (out == "OCEAN")
-        lakes = (out == "LAKE")
+        ocean = (out == BIOME_ID["OCEAN"])
+        lakes = (out == BIOME_ID["LAKE"])
         land = ~ocean & ~lakes
         land_area = int(np.count_nonzero(land)) + 1
 
         targets = {
-            "SNOW":   int(np.clip(MIN_FRAC_SNOW   * SIZE_MULT.get("SNOW", 1.0),   0, 0.95) * land_area),
-            "DESERT": int(np.clip(MIN_FRAC_DESERT * SIZE_MULT.get("DESERT", 1.0), 0, 0.95) * land_area),
-            "FOREST": int(np.clip(MIN_FRAC_FOREST * SIZE_MULT.get("FOREST", 1.0), 0, 0.95) * land_area),
+            BIOME_ID["SNOW"]:   int(np.clip(MIN_FRAC_SNOW   * SIZE_MULT["SNOW"],   0, 0.95) * land_area),
+            BIOME_ID["DESERT"]: int(np.clip(MIN_FRAC_DESERT * SIZE_MULT["DESERT"], 0, 0.95) * land_area),
+            BIOME_ID["FOREST"]: int(np.clip(MIN_FRAC_FOREST * SIZE_MULT["FOREST"], 0, 0.95) * land_area),
         }
 
-        def expand_into_plain(name, base_cond, score, need):
+        def expand_into_plain(target_id, base_cond, score, need):
             nonlocal out
             if need <= 0: return 0
-            plain = (out == "PLAIN") & land
+            plain = (out == BIOME_ID["PLAIN"]) & land
             cand = plain & base_cond
-            if not np.any(cand):
-                return 0
-            sc = score.copy()
-            sc[~cand] = -1e9
+            if not np.any(cand): return 0
+            sc = score.copy(); sc[~cand] = -1e9
             take = min(need, int(np.count_nonzero(cand)))
             if take <= 0: return 0
             flat_idx = np.argpartition(sc.ravel(), -take)[-take:]
             yy, xx = np.unravel_index(flat_idx, sc.shape)
             sel = cand[yy, xx]
-            out[yy[sel], xx[sel]] = name
+            out[yy[sel], xx[sel]] = target_id
             return int(sel.sum())
 
         counts = {k: int(np.count_nonzero(out == k)) for k in targets}
-        for biome_name in ["SNOW", "DESERT", "FOREST"]:
-            need = targets[biome_name] - counts[biome_name]
-            if need <= 0:
-                continue
-            if biome_name == "SNOW":
+        for biome_id in (BIOME_ID["SNOW"], BIOME_ID["DESERT"], BIOME_ID["FOREST"]):
+            need = targets[biome_id] - counts[biome_id]
+            if need <= 0: continue
+
+            if biome_id == BIOME_ID["SNOW"]:
                 base = (temp <= (TEMP_SNOW_MAX + 0.08))
                 score = (TEMP_SNOW_MAX + 0.08 - temp)
-            elif biome_name == "DESERT":
+            elif biome_id == BIOME_ID["DESERT"]:
                 base = (temp >= (TEMP_HOT_MIN - 0.08)) & (moist <= (MOIST_DESERT_MAX + 0.08))
                 score = (temp - (moist*0.5))
             else:  # FOREST
                 base = (moist >= (MOIST_FOREST_MIN - 0.08))
                 score = moist
-            need -= expand_into_plain(biome_name, base, score, need)
+
+            need -= expand_into_plain(biome_id, base, score, need)
             if need > 0:
-                if biome_name == "SNOW":
+                if biome_id == BIOME_ID["SNOW"]:
                     base = (temp <= (TEMP_SNOW_MAX + 0.16))
                     score = (TEMP_SNOW_MAX + 0.16 - temp)
-                elif biome_name == "DESERT":
+                elif biome_id == BIOME_ID["DESERT"]:
                     base = (temp >= (TEMP_HOT_MIN - 0.16)) & (moist <= (MOIST_DESERT_MAX + 0.16))
                     score = (temp - (moist*0.4))
-                else:
+                else:  # FOREST
                     base = (moist >= (MOIST_FOREST_MIN - 0.16))
                     score = moist
-                expand_into_plain(biome_name, base, score, need)
-
+                expand_into_plain(biome_id, base, score, need)
         return out
 
-    # ===================== Limpeza (snow/desert) =====================
+    # ===================== Limpeza (snow/desert) numérica =====================
     def prune_small_patches(biomes):
         h, w = biomes.shape
 
-        def process(target_name, min_size):
+        def process(target_id, min_size):
             visited = np.zeros((h, w), dtype=bool)
-            mask = (biomes == target_name)
+            mask = (biomes == target_id)
             for y in range(h):
                 for x in range(w):
                     if not mask[y, x] or visited[y, x]:
@@ -333,7 +329,7 @@ def GerarMapa(W=1200, H=1200, SEED=random.randint(0,5000)):
                                 if dy == 0 and dx == 0: continue
                                 ny, nx = cy+dy, cx+dx
                                 if 0 <= ny < h and 0 <= nx < w:
-                                    if biomes[ny, nx] != target_name:
+                                    if biomes[ny, nx] != target_id:
                                         border_neighbors.append(biomes[ny, nx])
                                     elif not visited[ny, nx]:
                                         visited[ny, nx] = True
@@ -341,26 +337,25 @@ def GerarMapa(W=1200, H=1200, SEED=random.randint(0,5000)):
                     if len(comp) < min_size:
                         counts = defaultdict(int)
                         for n in border_neighbors:
-                            counts[n] += 1
-                        avoid = {"OCEAN", "LAKE", target_name}
-                        best = None
-                        bestc = -1
+                            counts[int(n)] += 1
+                        avoid = {BIOME_ID["OCEAN"], BIOME_ID["LAKE"], target_id}
+                        best = None; bestc = -1
                         for k, v in counts.items():
                             if k in avoid: continue
                             if v > bestc:
                                 best, bestc = k, v
                         if best is None:
-                            best = "PLAIN"
+                            best = BIOME_ID["PLAIN"]
                         for (cy, cx) in comp:
                             biomes[cy, cx] = best
 
         if MIN_PATCH_SIZE_SNOW > 0:
-            process("SNOW", MIN_PATCH_SIZE_SNOW)
+            process(BIOME_ID["SNOW"], MIN_PATCH_SIZE_SNOW)
         if MIN_PATCH_SIZE_DESERT > 0:
-            process("DESERT", MIN_PATCH_SIZE_DESERT)
+            process(BIOME_ID["DESERT"], MIN_PATCH_SIZE_DESERT)
         return biomes
 
-    # ===================== Especiais (1 cada, sólidos) =====================
+    # ===================== Especiais (1 cada, sólidos) numéricos =====================
     def grow_blob_one_component(candidate_mask, target_area, rng, organic_field, avoid_mask=None, max_iter=10_000):
         h, w = candidate_mask.shape
         cand = candidate_mask.copy()
@@ -394,7 +389,7 @@ def GerarMapa(W=1200, H=1200, SEED=random.randint(0,5000)):
 
             for dy in (-1,0,1):
                 for dx in (-1,0,1):
-                    if dy == 0 and dx == 0:
+                    if dy == 0 and dx == 0: 
                         continue
                     ny, nx = y+dy, x+dx
                     if 0 <= ny < h and 0 <= nx < w:
@@ -422,13 +417,13 @@ def GerarMapa(W=1200, H=1200, SEED=random.randint(0,5000)):
         out = biomes.copy()
 
         ocean = elev < SEA_LEVEL
-        land = ~ocean & (biomes != "LAKE")
+        land = ~ocean & (biomes != BIOME_ID["LAKE"])
         organic = fbm((h, w), octaves=5, lacunarity=2.0, gain=0.5, base_cell=180, rng=np.random)
         land_area = int(np.count_nonzero(land)) + 1
         far_from_ocean = ~dilate_bool(ocean, radius=VOLCAN_MIN_COAST_DIST)
         used = np.zeros((h, w), dtype=bool)
 
-        def force_special(name, target_area):
+        def force_special(target_id, target_area):
             nonlocal out, used
             avail = land & (~used)
             avail_count = int(np.count_nonzero(avail))
@@ -439,26 +434,26 @@ def GerarMapa(W=1200, H=1200, SEED=random.randint(0,5000)):
                     return
             take = max(1, min(target_area, avail_count))
             blob = grow_blob_one_component(avail, take, rng, organic, avoid_mask=None)
-            out[blob] = name
+            out[blob] = target_id
             used |= blob
 
         # VULCANO
-        volcan_target = max(1, int(SPECIAL_RATES_VOLCAN * SIZE_MULT.get("VULCANO", 1.0) * land_area))
+        volcan_target = max(1, int(SPECIAL_RATES_VOLCAN * SIZE_MULT["VULCANO"] * land_area))
         volcano_cand = (relief == 2) & land & far_from_ocean & (~used)
         volcano_blob = grow_blob_one_component(volcano_cand, volcan_target, rng, organic, avoid_mask=used)
         if volcano_blob.any():
-            out[volcano_blob] = "VULCANO"; used |= volcano_blob
+            out[volcano_blob] = BIOME_ID["VULCANO"]; used |= volcano_blob
         else:
             cand_relax = (relief == 2) & land & (~used)
             volcano_blob = grow_blob_one_component(cand_relax, volcan_target, rng, organic, avoid_mask=used)
             if volcano_blob.any():
-                out[volcano_blob] = "VULCANO"; used |= volcano_blob
+                out[volcano_blob] = BIOME_ID["VULCANO"]; used |= volcano_blob
             else:
-                force_special("VULCANO", volcan_target)
+                force_special(BIOME_ID["VULCANO"], volcan_target)
 
         # PANTANO
-        swamp_target = max(1, int(SPECIAL_RATES_SWAMP * SIZE_MULT.get("PANTANO", 1.0) * land_area))
-        lakes_mask = (out == "LAKE")
+        swamp_target = max(1, int(SPECIAL_RATES_SWAMP * SIZE_MULT["PANTANO"] * land_area))
+        lakes_mask = (out == BIOME_ID["LAKE"])
         near_lake = dilate_bool(lakes_mask, radius=SWAMP_NEAR_LAKE_RADIUS)
         swamp_cand = land & near_lake & (elev <= SWAMP_LOWLAND_MAX) & (moist >= SWAMP_MOIST_MIN) & (~used)
         swamp_blob = grow_blob_one_component(swamp_cand, swamp_target, rng, organic, avoid_mask=used)
@@ -477,58 +472,52 @@ def GerarMapa(W=1200, H=1200, SEED=random.randint(0,5000)):
             swamp_blob = grow_blob_one_component(swamp_cand4, swamp_target, rng, organic, avoid_mask=used)
 
         if swamp_blob.any():
-            out[swamp_blob] = "PANTANO"; used |= swamp_blob
+            out[swamp_blob] = BIOME_ID["PANTANO"]; used |= swamp_blob
         else:
-            force_special("PANTANO", swamp_target)
+            force_special(BIOME_ID["PANTANO"], swamp_target)
 
         # TERRA MÁGICA
-        magic_target = max(1, int(SPECIAL_RATES_MAGIC * SIZE_MULT.get("TERRA_MAGICA", 1.0) * land_area))
-        not_extremes = land & (out != "PANTANO") & (out != "VULCANO")
+        magic_target = max(1, int(SPECIAL_RATES_MAGIC * SIZE_MULT["TERRA_MAGICA"] * land_area))
+        not_extremes = land & (out != BIOME_ID["PANTANO"]) & (out != BIOME_ID["VULCANO"])
         magic_cand = not_extremes & (moist >= 0.58) & (elev >= SEA_LEVEL + 0.02) & (elev <= MOUNTAIN_LEVEL) & (~used)
         magic_blob = grow_blob_one_component(magic_cand, magic_target, rng, organic, avoid_mask=used)
         if magic_blob.any():
-            out[magic_blob] = "TERRA_MAGICA"; used |= magic_blob
+            out[magic_blob] = BIOME_ID["TERRA_MAGICA"]; used |= magic_blob
         else:
             magic_relax = land & (moist >= 0.55) & (~used)
             magic_blob = grow_blob_one_component(magic_relax, magic_target, rng, organic, avoid_mask=used)
             if magic_blob.any():
-                out[magic_blob] = "TERRA_MAGICA"; used |= magic_blob
+                out[magic_blob] = BIOME_ID["TERRA_MAGICA"]; used |= magic_blob
             else:
-                force_special("TERRA_MAGICA", magic_target)
+                force_special(BIOME_ID["TERRA_MAGICA"], magic_target)
 
         # sanity check final
-        for name, target in [
-            ("VULCANO", volcan_target),
-            ("PANTANO", swamp_target),
-            ("TERRA_MAGICA", magic_target),
+        for target_id, target_area in [
+            (BIOME_ID["VULCANO"], volcan_target),
+            (BIOME_ID["PANTANO"], swamp_target),
+            (BIOME_ID["TERRA_MAGICA"], magic_target),
         ]:
-            if not np.any(out == name):
-                force_special(name, target)
+            if not np.any(out == target_id):
+                force_special(target_id, target_area)
 
         return out
 
     # ===================== Pipeline =====================
     shape = (H, W)
-    elev = generate_elevation(shape)
+    elev  = generate_elevation(shape)
     moist = generate_moisture(shape)
     temp  = generate_temperature(shape)
 
     relief = classify_relief(elev)
-    lakes = place_lakes(elev, moist)
+    lakes  = place_lakes(elev, moist)
 
     biomes = assign_biomes_base(elev, lakes, temp, moist)
     biomes = enforce_min_biomes(biomes, elev, temp, moist)
     biomes = prune_small_patches(biomes)
     biomes = place_special_biomes(elev, relief, moist, biomes)
 
-    # ---- Converte biomas (strings) -> IDs (uint8) para poupar processamento
-    biome_id = np.zeros(shape, dtype=np.uint8)
-    # ordem importa pouco aqui; cobrimos todos
-    for name, bid in BIOME_ID.items():
-        biome_id[biomes == name] = bid
-
-    # relief já é uint8 (0 oceano, 1 terra, 2 montanha)
-    return biome_id.astype(np.uint8)
+    # biomes já é uint8 (0..8). Retorna apenas a grid de biomas numéricos.
+    return biomes.astype(np.uint8)
 
 def GeraGridObjetos(grid_biomas, SEED=None):
     if SEED is not None:
