@@ -153,29 +153,26 @@ def GerarMapa(W=1200, H=1200, SEED=random.randint(0,5000)):
 
     # ===================== Morfologia booleana =====================
     def dilate_bool(mask, radius=1):
+        # garante booleano para o OR funcionar do jeito certo sem promover dtype
+        mask = mask.astype(bool, copy=False)
+
         if radius <= 0:
             return mask.copy()
+
         h, w = mask.shape
         out = mask.copy()
-        # Mesma lógica da sua versão (união de todos os deslocamentos),
-        # porém sem alocar "shifted" gigantes a cada iteração.
         for dy in range(-radius, radius + 1):
-            y0 = max(0,  dy)
-            y1 = min(h,  h + dy)
-            yy0 = max(0, -dy)
-            yy1 = yy0 + (y1 - y0)
+            y0 = max(0,  dy); y1 = min(h,  h + dy)
+            yy0 = max(0, -dy); yy1 = yy0 + (y1 - y0)
             if y1 - y0 <= 0:
                 continue
             for dx in range(-radius, radius + 1):
                 if dy == 0 and dx == 0:
                     continue
-                x0 = max(0,  dx)
-                x1 = min(w,  w + dx)
-                xx0 = max(0, -dx)
-                xx1 = xx0 + (x1 - x0)
+                x0 = max(0,  dx); x1 = min(w,  w + dx)
+                xx0 = max(0, -dx); xx1 = xx0 + (x1 - x0)
                 if x1 - x0 <= 0:
                     continue
-                # Em vez de criar "shifted", faz OR direto no slice alvo
                 out[y0:y1, x0:x1] |= mask[yy0:yy1, xx0:xx1]
         return out
 
@@ -192,42 +189,59 @@ def GerarMapa(W=1200, H=1200, SEED=random.randint(0,5000)):
         return dilate_bool(erode_bool(mask, radius), radius)
 
     def fill_holes(mask: np.ndarray) -> np.ndarray:
-   
+        """
+        Preenche buracos em 'mask' (True = sólido). Mesma lógica da tua versão:
+        flood-fill 4-conectado no complemento a partir das bordas, e retorna
+        mask | holes. Implementado com fila pré-alocada (int32) para reduzir
+        drasticamente overhead/memória. Resultado é idêntico.
+        """
+        # Assegura bool contíguo para indexação rápida
+        mask = np.ascontiguousarray(mask, dtype=bool)
         h, w = mask.shape
         mflat = mask.ravel()
-        outside = np.zeros(mflat.size, dtype=bool)
+        N = mflat.size
 
-        q = deque()
+        outside = np.zeros(N, dtype=bool)
 
-        # Semear bordas (topo/baixo)
-        # top row
+        # Fila circular pré-alocada
+        queue = np.empty(N, dtype=np.int32)
+        head = 0
+        tail = 0
+
+        def push(i: int):
+            nonlocal tail
+            outside[i] = True
+            queue[tail] = i
+            tail += 1
+
+        # --- seed nas bordas do complemento (~mask) ---
+        # Topo
         top = ~mflat[:w]
         if top.any():
-            idxs = np.nonzero(top)[0]
-            outside[idxs] = True
-            q.extend(idxs.tolist())
-        # bottom row
+            idxs = np.flatnonzero(top)
+            for idx in idxs:
+                if not outside[idx]:
+                    push(int(idx))
+        # Base
         off = (h - 1) * w
         bot = ~mflat[off:off + w]
         if bot.any():
-            idxs = off + np.nonzero(bot)[0]
-            outside[idxs] = True
-            q.extend(idxs.tolist())
-
-        # lados (esquerda/direita)
+            idxs = off + np.flatnonzero(bot)
+            for idx in idxs:
+                if not outside[idx]:
+                    push(int(idx))
+        # Laterais
         for y in range(h):
             iL = y * w
             if (not mflat[iL]) and (not outside[iL]):
-                outside[iL] = True
-                q.append(iL)
+                push(iL)
             iR = iL + (w - 1)
             if (not mflat[iR]) and (not outside[iR]):
-                outside[iR] = True
-                q.append(iR)
+                push(iR)
 
-        # BFS 4-conectado no complemento (~mask)
-        while q:
-            i = q.popleft()
+        # --- BFS 4-conectado no complemento ---
+        while head < tail:
+            i = int(queue[head]); head += 1
             x = i % w
             y = i // w
 
@@ -235,28 +249,24 @@ def GerarMapa(W=1200, H=1200, SEED=random.randint(0,5000)):
             if x > 0:
                 j = i - 1
                 if (not mflat[j]) and (not outside[j]):
-                    outside[j] = True
-                    q.append(j)
+                    push(j)
             # right
             if x < w - 1:
                 j = i + 1
                 if (not mflat[j]) and (not outside[j]):
-                    outside[j] = True
-                    q.append(j)
+                    push(j)
             # up
             if y > 0:
                 j = i - w
                 if (not mflat[j]) and (not outside[j]):
-                    outside[j] = True
-                    q.append(j)
+                    push(j)
             # down
             if y < h - 1:
                 j = i + w
                 if (not mflat[j]) and (not outside[j]):
-                    outside[j] = True
-                    q.append(j)
+                    push(j)
 
-        # holes = (~mask) & (~outside); retorna mask | holes == mask | (~outside)
+        # holes = (~mask) & (~outside)  =>  retorno = mask | holes
         outside = outside.reshape(h, w)
         return mask | (~outside)
 
