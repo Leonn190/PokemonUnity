@@ -413,6 +413,7 @@ def GerarMapa(W=1200, H=1200, SEED=random.randint(0,5000)):
         if len(ys) == 0:
             return np.zeros_like(candidate_mask, dtype=bool)
 
+        # seed inicial ponderada (igual à tua)
         vals = organic_field[ys, xs]
         probs = vals + 1e-6
         probs /= probs.sum()
@@ -421,36 +422,56 @@ def GerarMapa(W=1200, H=1200, SEED=random.randint(0,5000)):
 
         region = np.zeros_like(cand, dtype=bool)
         region[sy, sx] = True
-        frontier = [(sy, sx)]
-        visited = set([(sy, sx)])
+        region_count = 1  # evita region.sum() a cada passo
+
+        frontier = [(sy, sx)]           # lista simples
+        visited = np.zeros((h, w), dtype=bool)
+        visited[sy, sx] = True
+
         steps = 0
-
-        while frontier and region.sum() < target_area and steps < max_iter:
+        while frontier and region_count < target_area and steps < max_iter:
             steps += 1
-            if len(frontier) > 8:
-                sample = rng.choice(len(frontier), size=min(8, len(frontier)), replace=False)
-                pick = max(sample, key=lambda i: organic_field[frontier[i]])
-            else:
-                pick = rng.integers(0, len(frontier))
-            y, x = frontier.pop(pick)
 
+            # mesma lógica de escolha:
+            # - se frontier > 8, pega o melhor entre uma amostra aleatória
+            # - caso contrário, escolhe índice aleatório
+            if len(frontier) > 8:
+                sample_idx = rng.choice(len(frontier), size=min(8, len(frontier)), replace=False)
+                best_i = int(sample_idx[0])
+                best_v = -1.0
+                for i in sample_idx:
+                    y,x = frontier[int(i)]
+                    v = organic_field[y, x]
+                    if v > best_v:
+                        best_v = v
+                        best_i = int(i)
+                pick_i = best_i
+            else:
+                pick_i = int(rng.integers(0, len(frontier)))
+
+            # remove em O(1): swap-pop (em vez de pop(pick) que é O(n))
+            y, x = frontier[pick_i]
+            frontier[pick_i] = frontier[-1]
+            frontier.pop()
+
+            # expande vizinhos (mesma 8-conectividade e probabilidade)
             for dy in (-1,0,1):
                 for dx in (-1,0,1):
-                    if dy == 0 and dx == 0: 
+                    if dy == 0 and dx == 0:
                         continue
-                    ny, nx = y+dy, x+dx
-                    if 0 <= ny < h and 0 <= nx < w:
-                        if (ny, nx) in visited:
-                            continue
-                        visited.add((ny, nx))
+                    ny, nx = y + dy, x + dx
+                    if 0 <= ny < h and 0 <= nx < w and not visited[ny, nx]:
+                        visited[ny, nx] = True
                         if not cand[ny, nx]:
                             continue
                         p = 0.55 + 0.4 * organic_field[ny, nx]
                         if rng.random() < p:
-                            region[ny, nx] = True
-                            frontier.append((ny, nx))
-            random.shuffle(frontier)
+                            if not region[ny, nx]:
+                                region[ny, nx] = True
+                                region_count += 1
+                                frontier.append((ny, nx))
 
+        # solidificação (mesmas chamadas)
         if SPECIAL_SOLID_CLOSE_RADIUS > 0:
             region = close_bool(region, SPECIAL_SOLID_CLOSE_RADIUS)
         region = fill_holes(region)
