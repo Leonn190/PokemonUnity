@@ -55,8 +55,8 @@ def GerarMapa(W=1200, H=1200, SEED=random.randint(0,5000)):
         "SNOW":         1.00,
         "DESERT":       1.00,
         "FOREST":       1.00,
-        "VULCANO":      1.00,
-        "TERRA_MAGICA": 1.00,
+        "VULCANO":      1.25,
+        "TERRA_MAGICA": 1.25,
         "PANTANO":      1.00,
     }
 
@@ -622,19 +622,19 @@ OBJ_CONFIG = {
     2:  {"nome":"Arvore2",      "spawn_rate":0.08,  "dist_min":4, "biomas":[3]},      # floresta
     3:  {"nome":"Pinheiro",     "spawn_rate":0.06,  "dist_min":4, "biomas":[5]},      # neve
 
-    4:  {"nome":"Ouro",         "spawn_rate":0.004, "dist_min":5, "biomas":[2,3,5]},  # raros 4..8
-    5:  {"nome":"Diamante",     "spawn_rate":0.003, "dist_min":5, "biomas":[5]},
-    6:  {"nome":"Esmeralda",    "spawn_rate":0.003, "dist_min":5, "biomas":[4]},
-    7:  {"nome":"Rubi",         "spawn_rate":0.003, "dist_min":5, "biomas":[6]},
-    8:  {"nome":"Ametista",     "spawn_rate":0.003, "dist_min":5, "biomas":[7]},
+    4:  {"nome":"Ouro",         "spawn_rate":0.005, "dist_min":5, "biomas":[2,3,5]},  # raros 4..8
+    5:  {"nome":"Diamante",     "spawn_rate":0.004, "dist_min":5, "biomas":[5]},
+    6:  {"nome":"Esmeralda",    "spawn_rate":0.004, "dist_min":5, "biomas":[4]},
+    7:  {"nome":"Rubi",         "spawn_rate":0.005, "dist_min":5, "biomas":[6]},
+    8:  {"nome":"Ametista",     "spawn_rate":0.005, "dist_min":5, "biomas":[7]},
 
     9:  {"nome":"Cobre",        "spawn_rate":0.01,  "dist_min":5, "biomas":[2,3,4,5,7]},
     10: {"nome":"Pedra",        "spawn_rate":0.05,  "dist_min":4, "biomas":[2,3,4,5,7]},
     11: {"nome":"Arbusto",      "spawn_rate":0.05,  "dist_min":3, "biomas":[2,3,4,5,7]},
-    12: {"nome":"Poça de Lava", "spawn_rate":0.008, "dist_min":9, "biomas":[6]},
+    12: {"nome":"Poça de Lava", "spawn_rate":0.02,  "dist_min":9, "biomas":[6]},
 }
 
-def GeraGridObjetos(grid_biomas, SEED=None, spawn_obj_rate=0.15):
+def GeraGridObjetos(grid_biomas, SEED=None, spawn_obj_rate=0.14):
     """
     Versão otimizada (CPU/memória) mantendo a lógica original:
     - sorteio global com mitigação A/K;

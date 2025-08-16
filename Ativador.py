@@ -46,7 +46,7 @@ def VerificarServer():
             if capt:
                 poke["Capturado"] = capt + 1
             # remove se atingir 20
-            if poke.get("Fugiu", 0) >= 40 or poke.get("Capturado", 0) >= 40:
+            if poke.get("Fugiu", 0) >= 30 or poke.get("Capturado", 0) >= 30:
                 continue  # não mantém
         novos_pokes.append(poke)
     V.PokemonsAtivos = novos_pokes

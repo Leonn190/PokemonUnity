@@ -121,7 +121,7 @@ def GerarPokemon(players_ativos, pokemons_ativos):
         ivs = []
         for atributo in atributos:
             base = int(info_serializavel[atributo])
-            valor, minimo, maximo = gerar_valor(base, 0.75, 1.25, P)
+            valor, minimo, maximo = gerar_valor(base, 0.8, 1.2, P)
             iv = 0.0 if maximo == minimo else round(((valor - minimo) / (maximo - minimo)) * 100, 2)
             info_serializavel[f"IV_{atributo}"] = iv
             ivs.append(iv)
@@ -160,9 +160,9 @@ def GerarPokemon(players_ativos, pokemons_ativos):
             "loc": [X, Y],
             "id": ID,
             "extra": {
-                "TamanhoMirando": 50 - info_serializavel["Nivel"] + random.randint(-5, 10),
-                "VelocidadeMirando": random.uniform(0.9,info_serializavel["IV"]/10),
-                "Dificuldade": info_serializavel["Total"] * info_serializavel["Nivel"] / 100 + random.randint(5, 25),
+                "TamanhoMirando": 50 - info_serializavel["Nivel"] + random.randint(-6, 12),
+                "VelocidadeMirando": random.uniform(1,4.5),
+                "Dificuldade": info_serializavel["Total"] * info_serializavel["Nivel"] / 100 + random.randint(10, 30) + info_serializavel.get("Estagio", 0) * 4,
                 "Frutas": 0
             }
         }
