@@ -166,20 +166,30 @@ def GerarMapa(W=1200, H=1200, SEED=random.randint(0,5000)):
 
     # ===================== Morfologia booleana =====================
     def dilate_bool(mask, radius=1):
-        if radius <= 0: return mask.copy()
+        if radius <= 0:
+            return mask.copy()
         h, w = mask.shape
         out = mask.copy()
-        for dy in range(-radius, radius+1):
-            for dx in range(-radius, radius+1):
-                if dy == 0 and dx == 0: continue
-                shifted = np.zeros_like(mask)
-                y0 = max(0,  dy); y1 = min(h, h + dy)
-                x0 = max(0,  dx); x1 = min(w, w + dx)
-                yy0 = max(0, -dy); yy1 = yy0 + (y1 - y0)
-                xx0 = max(0, -dx); xx1 = xx0 + (x1 - x0)
-                if (y1-y0) > 0 and (x1-x0) > 0:
-                    shifted[y0:y1, x0:x1] = mask[yy0:yy1, xx0:xx1]
-                    out |= shifted
+        # Mesma lógica da sua versão (união de todos os deslocamentos),
+        # porém sem alocar "shifted" gigantes a cada iteração.
+        for dy in range(-radius, radius + 1):
+            y0 = max(0,  dy)
+            y1 = min(h,  h + dy)
+            yy0 = max(0, -dy)
+            yy1 = yy0 + (y1 - y0)
+            if y1 - y0 <= 0:
+                continue
+            for dx in range(-radius, radius + 1):
+                if dy == 0 and dx == 0:
+                    continue
+                x0 = max(0,  dx)
+                x1 = min(w,  w + dx)
+                xx0 = max(0, -dx)
+                xx1 = xx0 + (x1 - x0)
+                if x1 - x0 <= 0:
+                    continue
+                # Em vez de criar "shifted", faz OR direto no slice alvo
+                out[y0:y1, x0:x1] |= mask[yy0:yy1, xx0:xx1]
         return out
 
     def erode_bool(mask, radius=1):
