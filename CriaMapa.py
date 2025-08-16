@@ -191,24 +191,74 @@ def GerarMapa(W=1200, H=1200, SEED=random.randint(0,5000)):
         if radius <= 0: return mask.copy()
         return dilate_bool(erode_bool(mask, radius), radius)
 
-    def fill_holes(mask):
+    def fill_holes(mask: np.ndarray) -> np.ndarray:
+   
         h, w = mask.shape
-        outside = np.zeros_like(mask, dtype=bool)
-        dq = deque()
-        for x in range(w):
-            if not mask[0, x]: outside[0, x] = True; dq.append((0, x))
-            if not mask[h-1, x]: outside[h-1, x] = True; dq.append((h-1, x))
+        mflat = mask.ravel()
+        outside = np.zeros(mflat.size, dtype=bool)
+
+        q = deque()
+
+        # Semear bordas (topo/baixo)
+        # top row
+        top = ~mflat[:w]
+        if top.any():
+            idxs = np.nonzero(top)[0]
+            outside[idxs] = True
+            q.extend(idxs.tolist())
+        # bottom row
+        off = (h - 1) * w
+        bot = ~mflat[off:off + w]
+        if bot.any():
+            idxs = off + np.nonzero(bot)[0]
+            outside[idxs] = True
+            q.extend(idxs.tolist())
+
+        # lados (esquerda/direita)
         for y in range(h):
-            if not mask[y, 0]: outside[y, 0] = True; dq.append((y, 0))
-            if not mask[y, w-1]: outside[y, w-1] = True; dq.append((y, w-1))
-        while dq:
-            y, x = dq.popleft()
-            for ny, nx in ((y-1,x),(y+1,x),(y,x-1),(y,x+1)):
-                if 0 <= ny < h and 0 <= nx < w and not outside[ny, nx] and not mask[ny, nx]:
-                    outside[ny, nx] = True
-                    dq.append((ny, nx))
-        holes = (~mask) & (~outside)
-        return mask | holes
+            iL = y * w
+            if (not mflat[iL]) and (not outside[iL]):
+                outside[iL] = True
+                q.append(iL)
+            iR = iL + (w - 1)
+            if (not mflat[iR]) and (not outside[iR]):
+                outside[iR] = True
+                q.append(iR)
+
+        # BFS 4-conectado no complemento (~mask)
+        while q:
+            i = q.popleft()
+            x = i % w
+            y = i // w
+
+            # left
+            if x > 0:
+                j = i - 1
+                if (not mflat[j]) and (not outside[j]):
+                    outside[j] = True
+                    q.append(j)
+            # right
+            if x < w - 1:
+                j = i + 1
+                if (not mflat[j]) and (not outside[j]):
+                    outside[j] = True
+                    q.append(j)
+            # up
+            if y > 0:
+                j = i - w
+                if (not mflat[j]) and (not outside[j]):
+                    outside[j] = True
+                    q.append(j)
+            # down
+            if y < h - 1:
+                j = i + w
+                if (not mflat[j]) and (not outside[j]):
+                    outside[j] = True
+                    q.append(j)
+
+        # holes = (~mask) & (~outside); retorna mask | holes == mask | (~outside)
+        outside = outside.reshape(h, w)
+        return mask | (~outside)
 
     # ===================== Lagos =====================
     def place_lakes(elev, moisture):
@@ -516,7 +566,7 @@ def GerarMapa(W=1200, H=1200, SEED=random.randint(0,5000)):
     return biomes.astype(int).tolist()
 
 OBJ_CONFIG = {
-    0:  {"nome":"Árvore",       "spawn_rate":0.06,  "dist_min":4, "biomas":[2,6,7]},  # plain, vulcão, terra mágica
+    0:  {"nome":"Árvore",       "spawn_rate":0.06,  "dist_min":4, "biomas":[2,7]},  # plain, vulcão, terra mágica
     1:  {"nome":"Palmeira",     "spawn_rate":0.06,  "dist_min":5, "biomas":[4]},      # deserto
     2:  {"nome":"Arvore2",      "spawn_rate":0.06,  "dist_min":3, "biomas":[3]},      # floresta
     3:  {"nome":"Pinheiro",     "spawn_rate":0.06,  "dist_min":3, "biomas":[5]},      # neve
