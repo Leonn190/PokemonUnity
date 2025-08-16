@@ -150,7 +150,7 @@ def GerarPokemon(players_ativos, pokemons_ativos):
         )
         info_serializavel["Total"] = int(total)
 
-        ID = f"{info_serializavel['Nome']}{random.randint(1, 3000)}"
+        ID = f"{info_serializavel['Nome']}{random.randint(1, 5000)}"
         info_serializavel["ID"] = ID
 
         string_comprimida = CompactarPokemon(info_serializavel)
@@ -161,11 +161,8 @@ def GerarPokemon(players_ativos, pokemons_ativos):
             "id": ID,
             "extra": {
                 "TamanhoMirando": 50 - info_serializavel["Nivel"] + random.randint(-5, 10),
-                "VelocidadeMirando": max(
-                    1,
-                    info_serializavel["IV"] / 10 + random.randint(0, int(max(1, info_serializavel["Vel"]) / 10))
-                ),
-                "Dificuldade": info_serializavel["Total"] * info_serializavel["Nivel"] / 100 + random.randint(5, 20),
+                "VelocidadeMirando": random.uniform(0.9,info_serializavel["IV"]/10),
+                "Dificuldade": info_serializavel["Total"] * info_serializavel["Nivel"] / 100 + random.randint(5, 25),
                 "Frutas": 0
             }
         }
