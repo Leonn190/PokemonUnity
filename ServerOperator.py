@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from CriaMapa import gerar_e_salvar_mapa, Mapa
 from sqlalchemy import inspect
 import Variaveis as V
+import random
 import json
 
 Operator_bp = Blueprint('operator', __name__)
@@ -24,7 +25,7 @@ def ativar_servidor():
     global V
     if not V.Ativo:
         V.db.create_all()
-        gerar_e_salvar_mapa(800,800)
+        gerar_e_salvar_mapa(1000,1000)
         V.Ativo = True
         return jsonify({"status": "ok", "mensagem": "Servidor ativado. Tabelas criadas."}), 200
     else:

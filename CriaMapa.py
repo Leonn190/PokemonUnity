@@ -530,9 +530,9 @@ def GerarMapa(W=1200, H=1200, SEED=random.randint(0,5000)):
     # relief já é uint8 (0 oceano, 1 terra, 2 montanha)
     return biome_id.astype(np.uint8)
 
-def GeraGridObjetos(grid_biomas, seed=None):
-    if seed is not None:
-        random.seed(seed)
+def GeraGridObjetos(grid_biomas, SEED=None):
+    if SEED is not None:
+        random.seed(SEED)
     
     altura = len(grid_biomas)
     largura = len(grid_biomas[0]) if altura > 0 else 0
@@ -591,8 +591,8 @@ def GeraGridObjetos(grid_biomas, seed=None):
 
 def gerar_e_salvar_mapa(largura, altura, seed=random.randint(0,5000)):
     # Gerar as grids
-    grid_biomas = GerarMapa(largura, altura, seed=seed)
-    grid_objetos = GeraGridObjetos(grid_biomas, seed=seed)
+    grid_biomas = GerarMapa(largura, altura, SEED=seed)
+    grid_objetos = GeraGridObjetos(grid_biomas, SEED=seed)
 
     # Serializar para JSON
     biomas_json = json.dumps(grid_biomas)
