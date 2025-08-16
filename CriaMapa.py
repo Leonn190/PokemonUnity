@@ -526,8 +526,7 @@ def GerarMapa(W=1200, H=1200, SEED=random.randint(0,5000)):
     biomes = prune_small_patches(biomes)
     biomes = place_special_biomes(elev, relief, moist, biomes)
 
-    # biomes já é uint8 (0..8). Retorna apenas a grid de biomas numéricos.
-    return biomes.astype(np.uint8)
+    return biomes.astype(int).tolist()
 
 def GeraGridObjetos(grid_biomas, SEED=None):
     if SEED is not None:
