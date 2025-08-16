@@ -1,8 +1,9 @@
 import random
-from collections import deque
+from collections import deque, defaultdict
 import Variaveis as V
 import json
 import math
+import numpy as np
 from sqlalchemy import Column, Text, Integer
 
 class Mapa(V.db.Model):
@@ -10,112 +11,587 @@ class Mapa(V.db.Model):
     id = Column(Integer, primary_key=True)  # <-- ESSENCIAL
     biomas_json = Column(Text, nullable=False)
     objetos_json = Column(Text, nullable=False)
-    
-def GeraGridBiomas(largura, altura, seed=None):
-    if seed is not None:
-        random.seed(seed)
-    
-    total_celulas = largura * altura
-    
-    # Biomas, índices e proporções
-    biomas = {
-        0: 0.22,  # campo
-        1: 0.40,  # oceano
-        2: 0.18,  # floresta
-        3: 0.10,  # neve
-        4: 0.10   # deserto
-    }
-    
-    # Quantidade de células por bioma (inteiro)
-    quantidades = {b: int(p * total_celulas) for b, p in biomas.items()}
-    
-    # Corrige arredondamento
-    soma = sum(quantidades.values())
-    diferenca = total_celulas - soma
-    if diferenca != 0:
-        # Ajusta o bioma de índice 1 (oceano) para compensar
-        quantidades[1] += diferenca
-    
-    # Inicializa grid vazio com -1 (vazio)
-    grid = [[-1 for _ in range(largura)] for _ in range(altura)]
-    celulas_livres = {(x, y) for x in range(largura) for y in range(altura)}
-    
-    def vizinhos(x, y):
-        for dx, dy in [(-1,0), (1,0), (0,-1), (0,1)]:
-            nx, ny = x + dx, y + dy
-            if 0 <= nx < largura and 0 <= ny < altura:
-                yield (nx, ny)
-    
-    def espalhar_bioma(bioma, quantidade):
-        # Começa com uma fonte aleatória disponível
-        if not celulas_livres:
-            return 0
-        fonte = random.choice(list(celulas_livres))
-        fila = deque([fonte])
-        colocados = 0
-        
-        while fila and colocados < quantidade:
-            x, y = fila.popleft()
-            if (x, y) not in celulas_livres:
-                continue
-            grid[y][x] = bioma
-            celulas_livres.remove((x, y))
-            colocados += 1
-            # Adiciona vizinhos livres à fila para expandir
-            for viz in vizinhos(x, y):
-                if viz in celulas_livres:
-                    fila.append(viz)
-        return colocados
-    
-    # Espalha cada bioma com sua quantidade
-    for b, qtd in quantidades.items():
-        espalhar_bioma(b, qtd)
-    
-    # Se sobrar células livres (por alguma razão), preenche com bioma 1 (oceano)
-    for x, y in list(celulas_livres):
-        grid[y][x] = 1
-        celulas_livres.remove((x, y))
-    
-    return grid
 
-def GeraGridObjetos(grid_biomas, prob_objeto=0.01, distancia_minima=5, seed=None):
+# ===================== IDs numéricos de bioma =====================
+BIOME_ID = {
+        "OCEAN":        0,
+        "LAKE":         1,
+        "PLAIN":        2,
+        "FOREST":       3,
+        "DESERT":       4,
+        "SNOW":         5,
+        "VULCANO":      6,
+        "TERRA_MAGICA": 7,
+        "PANTANO":      8,
+    }
+
+OBJ_CONFIG = {
+    0: {"nome": "Árvore",     "spawn_rate": 0.06, "dist_min": 3, "biomas": [2,3,4,5,7]}, 
+    1: {"nome": "Pedra",      "spawn_rate": 0.05, "dist_min": 3, "biomas": [2,3,4,5,6,7]},
+    2: {"nome": "Arbusto",    "spawn_rate": 0.04, "dist_min": 2, "biomas": [2,3,4,5,6,7]},
+    3: {"nome": "Cobre",      "spawn_rate": 0.01, "dist_min": 4, "biomas": [2,3,4,5,6,7]},
+    4: {"nome": "Ouro",       "spawn_rate": 0.004,"dist_min": 5, "biomas": [2,3,5]},       # planície, floresta, neve
+    5: {"nome": "Diamante",   "spawn_rate": 0.003,"dist_min": 5, "biomas": [5]},          # só neve
+    6: {"nome": "Esmeralda",  "spawn_rate": 0.003,"dist_min": 5, "biomas": [4]},          # só deserto
+    7: {"nome": "Rubi",       "spawn_rate": 0.003,"dist_min": 5, "biomas": [6]},          # só vulcão
+    8: {"nome": "Ametista",   "spawn_rate": 0.003,"dist_min": 5, "biomas": [7]},          # só terra mágica
+    9: {"nome": "Poça de Lava","spawn_rate":0.008,"dist_min": 8, "biomas": [6]},          # só vulcão
+}
+
+def GerarMapa(W=1200, H=1200, SEED=random.randint(0,5000)):
+    # ===================== Parâmetros principais / TUNING =====================
+    random.seed(SEED)
+    np.random.seed(SEED)
+
+    # ---------- LAND vs OCEAN ----------
+    SEA_LEVEL_BASE = 0.45     # nível do mar “neutro”
+    LAND_MASS_BIAS = 0.00     # + => MAIS OCEANO (sobe o mar) / - => MAIS TERRA (desce o mar)
+    SEA_LEVEL = float(np.clip(SEA_LEVEL_BASE + LAND_MASS_BIAS, 0.02, 0.98))
+    MOUNTAIN_LEVEL = 0.75     # chão alto
+
+    # ====== LAGOS (controle por rate) ======
+    LAKE_RATE = 0.45
+    LAKE_MOISTURE_MIN = 0.70
+    LAKE_MAX_ELEV = SEA_LEVEL + 0.08
+    LAKE_SMOOTH_RADIUS = 1
+
+    # ---- Tamanhos BASE e multiplicadores por BIOMA ----
+    MIN_FRAC_SNOW   = 0.03
+    MIN_FRAC_DESERT = 0.06
+    MIN_FRAC_FOREST = 0.12
+
+    SPECIAL_RATES_VOLCAN = 0.01
+    SPECIAL_RATES_MAGIC  = 0.01
+    SPECIAL_RATES_SWAMP  = 0.01
+
+    SIZE_MULT = {
+        "LAKE":         1.00,
+        "SNOW":         1.00,
+        "DESERT":       1.00,
+        "FOREST":       1.00,
+        "VULCANO":      1.00,
+        "TERRA_MAGICA": 1.00,
+        "PANTANO":      1.00,
+    }
+
+    # Critérios auxiliares dos especiais
+    VOLCAN_MIN_COAST_DIST   = 6
+    SWAMP_NEAR_LAKE_RADIUS  = 2
+    SWAMP_NEAR_COAST_RADIUS = 3
+    SWAMP_LOWLAND_MAX       = SEA_LEVEL + 0.06
+    SWAMP_MOIST_MIN         = 0.60
+
+    # Solidez dos especiais (morfologia)
+    SPECIAL_SOLID_CLOSE_RADIUS = 2
+    SPECIAL_SOLID_OPEN_RADIUS  = 0
+
+    # ---- KNOBS dos biomas comuns ----
+    TEMP_SNOW_MAX = 0.25
+    MOIST_FOREST_MIN = 0.55
+    MOIST_DESERT_MAX = 0.35
+    TEMP_HOT_MIN = 0.65
+
+    # --------- Limpeza de “manchinhas” ----------
+    MIN_PATCH_SIZE_SNOW   = 1500
+    MIN_PATCH_SIZE_DESERT = 1500
+
+    # ===================== Utilidades de noise (FBM caseiro) =====================
+    def value_noise(shape, cell=64, rng=np.random):
+        h, w = shape
+        gw = max(2, int(math.ceil(w / cell)) + 1)
+        gh = max(2, int(math.ceil(h / cell)) + 1)
+        grid = rng.rand(gh, gw)
+        yy = np.linspace(0, gh - 1, h)
+        xx = np.linspace(0, gw - 1, w)
+        X, Y = np.meshgrid(xx, yy)
+        x0 = np.floor(X).astype(int); y0 = np.floor(Y).astype(int)
+        x1 = np.clip(x0 + 1, 0, gw - 1); y1 = np.clip(y0 + 1, 0, gh - 1)
+        sx = X - x0; sy = Y - y0
+        v00 = grid[y0, x0]; v10 = grid[y0, x1]
+        v01 = grid[y1, x0]; v11 = grid[y1, x1]
+        i1 = v00 * (1 - sx) + v10 * sx
+        i2 = v01 * (1 - sx) + v11 * sx
+        out = i1 * (1 - sy) + i2 * sy
+        return out
+
+    def fbm(shape, octaves=6, lacunarity=2.0, gain=0.5, base_cell=256, rng=np.random):
+        h, w = shape
+        total = np.zeros((h, w), dtype=np.float32)
+        amp = 1.0
+        freq_cell = base_cell
+        for _ in range(octaves):
+            n = value_noise((h, w), cell=max(4, int(freq_cell)), rng=rng)
+            total += amp * n
+            amp *= gain
+            freq_cell /= lacunarity
+        total -= total.min()
+        total /= (total.max() + 1e-9)
+        return total
+
+    def normalize01(arr):
+        arr = arr.astype(np.float32)
+        arr -= arr.min()
+        m = arr.max()
+        if m > 0: arr /= m
+        return arr
+
+    # ===================== Gera campos base =====================
+    def generate_elevation(shape):
+        base = fbm(shape, octaves=7, lacunarity=2.1, gain=0.52, base_cell=220, rng=np.random)
+        h, w = shape
+        yy = np.linspace(-1, 1, h)
+        xx = np.linspace(-1, 1, w)
+        X, Y = np.meshgrid(xx, yy)
+        r = np.sqrt(X*X + Y*Y)
+        radial = np.clip(1.0 - r*0.9, 0.0, 1.0)  # centro mais alto, bordas mais baixas
+        elev = 0.75*base + 0.25*radial
+        return normalize01(elev)
+
+    def generate_moisture(shape):
+        return fbm(shape, octaves=5, lacunarity=2.0, gain=0.5, base_cell=300, rng=np.random)
+
+    def generate_temperature(shape):
+        h, w = shape
+        lat = np.linspace(1.0, 0.0, h).reshape(h,1)  # topo frio
+        noise = fbm(shape, octaves=4, lacunarity=2.0, gain=0.55, base_cell=260, rng=np.random)
+        temp = 0.75*lat + 0.25*noise
+        temp = normalize01(1.0 - temp)  # topo mais frio, base mais quente
+        return temp
+
+    def classify_relief(elev):
+        relief = np.zeros_like(elev, dtype=np.uint8)
+        relief[elev < SEA_LEVEL] = 0
+        relief[(elev >= SEA_LEVEL) & (elev < MOUNTAIN_LEVEL)] = 1
+        relief[elev >= MOUNTAIN_LEVEL] = 2
+        return relief
+
+    # ===================== Morfologia booleana =====================
+    def dilate_bool(mask, radius=1):
+        if radius <= 0: return mask.copy()
+        h, w = mask.shape
+        out = mask.copy()
+        for dy in range(-radius, radius+1):
+            for dx in range(-radius, radius+1):
+                if dy == 0 and dx == 0: continue
+                shifted = np.zeros_like(mask)
+                y0 = max(0,  dy); y1 = min(h, h + dy)
+                x0 = max(0,  dx); x1 = min(w, w + dx)
+                yy0 = max(0, -dy); yy1 = yy0 + (y1 - y0)
+                xx0 = max(0, -dx); xx1 = xx0 + (x1 - x0)
+                if (y1-y0) > 0 and (x1-x0) > 0:
+                    shifted[y0:y1, x0:x1] = mask[yy0:yy1, xx0:xx1]
+                    out |= shifted
+        return out
+
+    def erode_bool(mask, radius=1):
+        if radius <= 0: return mask.copy()
+        return ~dilate_bool(~mask, radius)
+
+    def close_bool(mask, radius=1):
+        if radius <= 0: return mask.copy()
+        return erode_bool(dilate_bool(mask, radius), radius)
+
+    def open_bool(mask, radius=1):
+        if radius <= 0: return mask.copy()
+        return dilate_bool(erode_bool(mask, radius), radius)
+
+    def fill_holes(mask):
+        h, w = mask.shape
+        outside = np.zeros_like(mask, dtype=bool)
+        dq = deque()
+        for x in range(w):
+            if not mask[0, x]: outside[0, x] = True; dq.append((0, x))
+            if not mask[h-1, x]: outside[h-1, x] = True; dq.append((h-1, x))
+        for y in range(h):
+            if not mask[y, 0]: outside[y, 0] = True; dq.append((y, 0))
+            if not mask[y, w-1]: outside[y, w-1] = True; dq.append((y, w-1))
+        while dq:
+            y, x = dq.popleft()
+            for ny, nx in ((y-1,x),(y+1,x),(y,x-1),(y,x+1)):
+                if 0 <= ny < h and 0 <= nx < w and not outside[ny, nx] and not mask[ny, nx]:
+                    outside[ny, nx] = True
+                    dq.append((ny, nx))
+        holes = (~mask) & (~outside)
+        return mask | holes
+
+    # ===================== Lagos =====================
+    def place_lakes(elev, moisture):
+        rate = float(np.clip(LAKE_RATE * SIZE_MULT.get("LAKE", 1.0), 0.0, 1.0))
+        cand = (elev >= SEA_LEVEL) & (elev <= LAKE_MAX_ELEV) & (moisture >= LAKE_MOISTURE_MIN)
+        if rate <= 0.0:
+            lakes = np.zeros_like(elev, dtype=bool)
+        elif rate >= 1.0:
+            lakes = cand.copy()
+        else:
+            rnd = np.random.rand(*elev.shape)
+            lakes = cand & (rnd < rate)
+        if LAKE_SMOOTH_RADIUS > 0:
+            lakes = close_bool(lakes, LAKE_SMOOTH_RADIUS)
+            lakes = open_bool(lakes, 1)
+        return lakes
+
+    # ===================== Biomas comuns =====================
+    def assign_biomes_base(elev, lakes, temp, moist):
+        h, w = elev.shape
+        biomes = np.full((h, w), fill_value="PLAIN", dtype=object)
+        ocean = elev < SEA_LEVEL
+        biomes[ocean] = "OCEAN"
+        biomes[lakes & ~ocean] = "LAKE"
+        land = ~ocean & ~lakes
+
+        mask_snow = (temp <= TEMP_SNOW_MAX) & land
+        biomes[mask_snow] = "SNOW"
+
+        mask_desert = (temp >= TEMP_HOT_MIN) & (moist <= MOIST_DESERT_MAX) & land
+        biomes[mask_desert] = "DESERT"
+
+        mask_forest = (moist >= MOIST_FOREST_MIN) & land & ~mask_desert & ~mask_snow
+        biomes[mask_forest] = "FOREST"
+
+        return biomes
+
+    # ===================== Enforce mínimos =====================
+    def enforce_min_biomes(biomes, elev, temp, moist):
+        out = biomes.copy()
+        ocean = (out == "OCEAN")
+        lakes = (out == "LAKE")
+        land = ~ocean & ~lakes
+        land_area = int(np.count_nonzero(land)) + 1
+
+        targets = {
+            "SNOW":   int(np.clip(MIN_FRAC_SNOW   * SIZE_MULT.get("SNOW", 1.0),   0, 0.95) * land_area),
+            "DESERT": int(np.clip(MIN_FRAC_DESERT * SIZE_MULT.get("DESERT", 1.0), 0, 0.95) * land_area),
+            "FOREST": int(np.clip(MIN_FRAC_FOREST * SIZE_MULT.get("FOREST", 1.0), 0, 0.95) * land_area),
+        }
+
+        def expand_into_plain(name, base_cond, score, need):
+            nonlocal out
+            if need <= 0: return 0
+            plain = (out == "PLAIN") & land
+            cand = plain & base_cond
+            if not np.any(cand):
+                return 0
+            sc = score.copy()
+            sc[~cand] = -1e9
+            take = min(need, int(np.count_nonzero(cand)))
+            if take <= 0: return 0
+            flat_idx = np.argpartition(sc.ravel(), -take)[-take:]
+            yy, xx = np.unravel_index(flat_idx, sc.shape)
+            sel = cand[yy, xx]
+            out[yy[sel], xx[sel]] = name
+            return int(sel.sum())
+
+        counts = {k: int(np.count_nonzero(out == k)) for k in targets}
+        for biome_name in ["SNOW", "DESERT", "FOREST"]:
+            need = targets[biome_name] - counts[biome_name]
+            if need <= 0:
+                continue
+            if biome_name == "SNOW":
+                base = (temp <= (TEMP_SNOW_MAX + 0.08))
+                score = (TEMP_SNOW_MAX + 0.08 - temp)
+            elif biome_name == "DESERT":
+                base = (temp >= (TEMP_HOT_MIN - 0.08)) & (moist <= (MOIST_DESERT_MAX + 0.08))
+                score = (temp - (moist*0.5))
+            else:  # FOREST
+                base = (moist >= (MOIST_FOREST_MIN - 0.08))
+                score = moist
+            need -= expand_into_plain(biome_name, base, score, need)
+            if need > 0:
+                if biome_name == "SNOW":
+                    base = (temp <= (TEMP_SNOW_MAX + 0.16))
+                    score = (TEMP_SNOW_MAX + 0.16 - temp)
+                elif biome_name == "DESERT":
+                    base = (temp >= (TEMP_HOT_MIN - 0.16)) & (moist <= (MOIST_DESERT_MAX + 0.16))
+                    score = (temp - (moist*0.4))
+                else:
+                    base = (moist >= (MOIST_FOREST_MIN - 0.16))
+                    score = moist
+                expand_into_plain(biome_name, base, score, need)
+
+        return out
+
+    # ===================== Limpeza (snow/desert) =====================
+    def prune_small_patches(biomes):
+        h, w = biomes.shape
+
+        def process(target_name, min_size):
+            visited = np.zeros((h, w), dtype=bool)
+            mask = (biomes == target_name)
+            for y in range(h):
+                for x in range(w):
+                    if not mask[y, x] or visited[y, x]:
+                        continue
+                    q = deque([(y, x)])
+                    comp = []
+                    visited[y, x] = True
+                    border_neighbors = []
+                    while q:
+                        cy, cx = q.popleft()
+                        comp.append((cy, cx))
+                        for dy in (-1,0,1):
+                            for dx in (-1,0,1):
+                                if dy == 0 and dx == 0: continue
+                                ny, nx = cy+dy, cx+dx
+                                if 0 <= ny < h and 0 <= nx < w:
+                                    if biomes[ny, nx] != target_name:
+                                        border_neighbors.append(biomes[ny, nx])
+                                    elif not visited[ny, nx]:
+                                        visited[ny, nx] = True
+                                        q.append((ny, nx))
+                    if len(comp) < min_size:
+                        counts = defaultdict(int)
+                        for n in border_neighbors:
+                            counts[n] += 1
+                        avoid = {"OCEAN", "LAKE", target_name}
+                        best = None
+                        bestc = -1
+                        for k, v in counts.items():
+                            if k in avoid: continue
+                            if v > bestc:
+                                best, bestc = k, v
+                        if best is None:
+                            best = "PLAIN"
+                        for (cy, cx) in comp:
+                            biomes[cy, cx] = best
+
+        if MIN_PATCH_SIZE_SNOW > 0:
+            process("SNOW", MIN_PATCH_SIZE_SNOW)
+        if MIN_PATCH_SIZE_DESERT > 0:
+            process("DESERT", MIN_PATCH_SIZE_DESERT)
+        return biomes
+
+    # ===================== Especiais (1 cada, sólidos) =====================
+    def grow_blob_one_component(candidate_mask, target_area, rng, organic_field, avoid_mask=None, max_iter=10_000):
+        h, w = candidate_mask.shape
+        cand = candidate_mask.copy()
+        if avoid_mask is not None:
+            cand &= ~avoid_mask
+
+        ys, xs = np.where(cand)
+        if len(ys) == 0:
+            return np.zeros_like(candidate_mask, dtype=bool)
+
+        vals = organic_field[ys, xs]
+        probs = vals + 1e-6
+        probs /= probs.sum()
+        idx = rng.choice(len(ys), p=probs)
+        sy, sx = int(ys[idx]), int(xs[idx])
+
+        region = np.zeros_like(cand, dtype=bool)
+        region[sy, sx] = True
+        frontier = [(sy, sx)]
+        visited = set([(sy, sx)])
+        steps = 0
+
+        while frontier and region.sum() < target_area and steps < max_iter:
+            steps += 1
+            if len(frontier) > 8:
+                sample = rng.choice(len(frontier), size=min(8, len(frontier)), replace=False)
+                pick = max(sample, key=lambda i: organic_field[frontier[i]])
+            else:
+                pick = rng.integers(0, len(frontier))
+            y, x = frontier.pop(pick)
+
+            for dy in (-1,0,1):
+                for dx in (-1,0,1):
+                    if dy == 0 and dx == 0:
+                        continue
+                    ny, nx = y+dy, x+dx
+                    if 0 <= ny < h and 0 <= nx < w:
+                        if (ny, nx) in visited:
+                            continue
+                        visited.add((ny, nx))
+                        if not cand[ny, nx]:
+                            continue
+                        p = 0.55 + 0.4 * organic_field[ny, nx]
+                        if rng.random() < p:
+                            region[ny, nx] = True
+                            frontier.append((ny, nx))
+            random.shuffle(frontier)
+
+        if SPECIAL_SOLID_CLOSE_RADIUS > 0:
+            region = close_bool(region, SPECIAL_SOLID_CLOSE_RADIUS)
+        region = fill_holes(region)
+        if SPECIAL_SOLID_OPEN_RADIUS > 0:
+            region = open_bool(region, SPECIAL_SOLID_OPEN_RADIUS)
+        return region
+
+    def place_special_biomes(elev, relief, moist, biomes):
+        h, w = elev.shape
+        rng = np.random.default_rng(SEED + 1337)
+        out = biomes.copy()
+
+        ocean = elev < SEA_LEVEL
+        land = ~ocean & (biomes != "LAKE")
+        organic = fbm((h, w), octaves=5, lacunarity=2.0, gain=0.5, base_cell=180, rng=np.random)
+        land_area = int(np.count_nonzero(land)) + 1
+        far_from_ocean = ~dilate_bool(ocean, radius=VOLCAN_MIN_COAST_DIST)
+        used = np.zeros((h, w), dtype=bool)
+
+        def force_special(name, target_area):
+            nonlocal out, used
+            avail = land & (~used)
+            avail_count = int(np.count_nonzero(avail))
+            if avail_count == 0:
+                avail = land.copy()
+                avail_count = int(np.count_nonzero(avail))
+                if avail_count == 0:
+                    return
+            take = max(1, min(target_area, avail_count))
+            blob = grow_blob_one_component(avail, take, rng, organic, avoid_mask=None)
+            out[blob] = name
+            used |= blob
+
+        # VULCANO
+        volcan_target = max(1, int(SPECIAL_RATES_VOLCAN * SIZE_MULT.get("VULCANO", 1.0) * land_area))
+        volcano_cand = (relief == 2) & land & far_from_ocean & (~used)
+        volcano_blob = grow_blob_one_component(volcano_cand, volcan_target, rng, organic, avoid_mask=used)
+        if volcano_blob.any():
+            out[volcano_blob] = "VULCANO"; used |= volcano_blob
+        else:
+            cand_relax = (relief == 2) & land & (~used)
+            volcano_blob = grow_blob_one_component(cand_relax, volcan_target, rng, organic, avoid_mask=used)
+            if volcano_blob.any():
+                out[volcano_blob] = "VULCANO"; used |= volcano_blob
+            else:
+                force_special("VULCANO", volcan_target)
+
+        # PANTANO
+        swamp_target = max(1, int(SPECIAL_RATES_SWAMP * SIZE_MULT.get("PANTANO", 1.0) * land_area))
+        lakes_mask = (out == "LAKE")
+        near_lake = dilate_bool(lakes_mask, radius=SWAMP_NEAR_LAKE_RADIUS)
+        swamp_cand = land & near_lake & (elev <= SWAMP_LOWLAND_MAX) & (moist >= SWAMP_MOIST_MIN) & (~used)
+        swamp_blob = grow_blob_one_component(swamp_cand, swamp_target, rng, organic, avoid_mask=used)
+
+        if not swamp_blob.any():
+            near_coast = dilate_bool(ocean, radius=SWAMP_NEAR_COAST_RADIUS) & land
+            swamp_cand2 = near_coast & (elev <= SWAMP_LOWLAND_MAX) & (moist >= SWAMP_MOIST_MIN) & (~used)
+            swamp_blob = grow_blob_one_component(swamp_cand2, swamp_target, rng, organic, avoid_mask=used)
+
+        if not swamp_blob.any():
+            swamp_cand3 = land & (elev <= SWAMP_LOWLAND_MAX) & (moist >= (SWAMP_MOIST_MIN + 0.05)) & (~used)
+            swamp_blob = grow_blob_one_component(swamp_cand3, swamp_target, rng, organic, avoid_mask=used)
+
+        if not swamp_blob.any():
+            swamp_cand4 = land & (moist >= (SWAMP_MOIST_MIN + 0.02)) & (~used)
+            swamp_blob = grow_blob_one_component(swamp_cand4, swamp_target, rng, organic, avoid_mask=used)
+
+        if swamp_blob.any():
+            out[swamp_blob] = "PANTANO"; used |= swamp_blob
+        else:
+            force_special("PANTANO", swamp_target)
+
+        # TERRA MÁGICA
+        magic_target = max(1, int(SPECIAL_RATES_MAGIC * SIZE_MULT.get("TERRA_MAGICA", 1.0) * land_area))
+        not_extremes = land & (out != "PANTANO") & (out != "VULCANO")
+        magic_cand = not_extremes & (moist >= 0.58) & (elev >= SEA_LEVEL + 0.02) & (elev <= MOUNTAIN_LEVEL) & (~used)
+        magic_blob = grow_blob_one_component(magic_cand, magic_target, rng, organic, avoid_mask=used)
+        if magic_blob.any():
+            out[magic_blob] = "TERRA_MAGICA"; used |= magic_blob
+        else:
+            magic_relax = land & (moist >= 0.55) & (~used)
+            magic_blob = grow_blob_one_component(magic_relax, magic_target, rng, organic, avoid_mask=used)
+            if magic_blob.any():
+                out[magic_blob] = "TERRA_MAGICA"; used |= magic_blob
+            else:
+                force_special("TERRA_MAGICA", magic_target)
+
+        # sanity check final
+        for name, target in [
+            ("VULCANO", volcan_target),
+            ("PANTANO", swamp_target),
+            ("TERRA_MAGICA", magic_target),
+        ]:
+            if not np.any(out == name):
+                force_special(name, target)
+
+        return out
+
+    # ===================== Pipeline =====================
+    shape = (H, W)
+    elev = generate_elevation(shape)
+    moist = generate_moisture(shape)
+    temp  = generate_temperature(shape)
+
+    relief = classify_relief(elev)
+    lakes = place_lakes(elev, moist)
+
+    biomes = assign_biomes_base(elev, lakes, temp, moist)
+    biomes = enforce_min_biomes(biomes, elev, temp, moist)
+    biomes = prune_small_patches(biomes)
+    biomes = place_special_biomes(elev, relief, moist, biomes)
+
+    # ---- Converte biomas (strings) -> IDs (uint8) para poupar processamento
+    biome_id = np.zeros(shape, dtype=np.uint8)
+    # ordem importa pouco aqui; cobrimos todos
+    for name, bid in BIOME_ID.items():
+        biome_id[biomes == name] = bid
+
+    # relief já é uint8 (0 oceano, 1 terra, 2 montanha)
+    return biome_id.astype(np.uint8)
+
+def GeraGridObjetos(grid_biomas, seed=None):
     if seed is not None:
         random.seed(seed)
     
     altura = len(grid_biomas)
     largura = len(grid_biomas[0]) if altura > 0 else 0
     
-    grid_objetos = [[0 for _ in range(largura)] for _ in range(altura)]
+    grid_objetos = [[-1 for _ in range(largura)] for _ in range(altura)]  # -1 = vazio
 
-    def tem_objeto_proximo(x, y):
-        for dy in range(-distancia_minima, distancia_minima + 1):
-            for dx in range(-distancia_minima, distancia_minima + 1):
-                nx = x + dx
-                ny = y + dy
+    def tem_objeto_proximo(x, y, dist_min):
+        for dy in range(-dist_min, dist_min + 1):
+            for dx in range(-dist_min, dist_min + 1):
+                nx, ny = x + dx, y + dy
                 if 0 <= nx < largura and 0 <= ny < altura:
-                    if grid_objetos[ny][nx] != 0:
-                        # Usa distância euclidiana real
-                        distancia = math.sqrt(dx ** 2 + dy ** 2)
-                        if distancia < distancia_minima:
+                    if grid_objetos[ny][nx] != -1:
+                        distancia = math.sqrt(dx**2 + dy**2)
+                        if distancia < dist_min:
                             return True
         return False
 
+    # ---- 1ª passada: geração probabilística normal ----
     for y in range(altura):
         for x in range(largura):
             bioma = grid_biomas[y][x]
 
-            # Não gera objeto no oceano (bioma 1)
-            if bioma == 1:
+            # pula oceano e lago
+            if bioma in (BIOME_ID["OCEAN"], BIOME_ID["LAKE"]):
                 continue
 
-            if random.random() < prob_objeto and not tem_objeto_proximo(x, y):
-                grid_objetos[y][x] = random.choice([1, 2, 3])
-    
+            for obj_id, cfg in OBJ_CONFIG.items():
+                if bioma not in cfg["biomas"]:
+                    continue
+                if random.random() < cfg["spawn_rate"]:
+                    if not tem_objeto_proximo(x, y, cfg["dist_min"]):
+                        grid_objetos[y][x] = obj_id
+                    break  # garante só 1 objeto por tile
+
+    # ---- 2ª passada: garantir pelo menos 2 spawns de cada minério raro ----
+    raros = [4,5,6,7,8]  # ouro, diamante, esmeralda, rubi, ametista
+    for obj_id in raros:
+        count = sum(row.count(obj_id) for row in grid_objetos)
+        needed = max(0, 2 - count)
+        if needed > 0:
+            # força spawn em locais válidos
+            for _ in range(needed):
+                tentativas = 0
+                colocado = False
+                while tentativas < 1000 and not colocado:
+                    x = random.randint(0, largura-1)
+                    y = random.randint(0, altura-1)
+                    bioma = grid_biomas[y][x]
+                    if bioma in OBJ_CONFIG[obj_id]["biomas"] and grid_objetos[y][x] == -1:
+                        if not tem_objeto_proximo(x, y, OBJ_CONFIG[obj_id]["dist_min"]):
+                            grid_objetos[y][x] = obj_id
+                            colocado = True
+                    tentativas += 1
+
     return grid_objetos
 
-def gerar_e_salvar_mapa(largura, altura, seed=None):
+def gerar_e_salvar_mapa(largura, altura, seed=random.randint(0,5000)):
     # Gerar as grids
-    grid_biomas = GeraGridBiomas(largura, altura, seed=seed)
+    grid_biomas = GerarMapa(largura, altura, seed=seed)
     grid_objetos = GeraGridObjetos(grid_biomas, seed=seed)
 
     # Serializar para JSON
