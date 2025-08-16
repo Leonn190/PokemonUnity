@@ -587,24 +587,24 @@ def GerarMapa(W=1200, H=1200, SEED=random.randint(0,5000)):
     return biomes.astype(int).tolist()
 
 OBJ_CONFIG = {
-    0:  {"nome":"Árvore",       "spawn_rate":0.06,  "dist_min":4, "biomas":[2,7]},  # plain, vulcão, terra mágica
-    1:  {"nome":"Palmeira",     "spawn_rate":0.06,  "dist_min":5, "biomas":[4]},      # deserto
-    2:  {"nome":"Arvore2",      "spawn_rate":0.06,  "dist_min":3, "biomas":[3]},      # floresta
-    3:  {"nome":"Pinheiro",     "spawn_rate":0.06,  "dist_min":3, "biomas":[5]},      # neve
+    0:  {"nome":"Árvore",       "spawn_rate":0.06,  "dist_min":5, "biomas":[2,7]},  # plain, vulcão, terra mágica
+    1:  {"nome":"Palmeira",     "spawn_rate":0.06,  "dist_min":6, "biomas":[4]},      # deserto
+    2:  {"nome":"Arvore2",      "spawn_rate":0.06,  "dist_min":5, "biomas":[3]},      # floresta
+    3:  {"nome":"Pinheiro",     "spawn_rate":0.06,  "dist_min":4, "biomas":[5]},      # neve
 
-    4:  {"nome":"Ouro",         "spawn_rate":0.004, "dist_min":4, "biomas":[2,3,5]},  # raros 4..8
+    4:  {"nome":"Ouro",         "spawn_rate":0.004, "dist_min":5, "biomas":[2,3,5]},  # raros 4..8
     5:  {"nome":"Diamante",     "spawn_rate":0.003, "dist_min":5, "biomas":[5]},
     6:  {"nome":"Esmeralda",    "spawn_rate":0.003, "dist_min":5, "biomas":[4]},
     7:  {"nome":"Rubi",         "spawn_rate":0.003, "dist_min":5, "biomas":[6]},
     8:  {"nome":"Ametista",     "spawn_rate":0.003, "dist_min":5, "biomas":[7]},
 
-    9:  {"nome":"Cobre",        "spawn_rate":0.01,  "dist_min":4, "biomas":[2,3,4,5,6,7]},
-    10: {"nome":"Pedra",        "spawn_rate":0.05,  "dist_min":3, "biomas":[2,3,4,5,6,7]},
-    11: {"nome":"Arbusto",      "spawn_rate":0.04,  "dist_min":2, "biomas":[2,3,4,5,6,7]},
+    9:  {"nome":"Cobre",        "spawn_rate":0.01,  "dist_min":5, "biomas":[2,3,4,5,6,7]},
+    10: {"nome":"Pedra",        "spawn_rate":0.05,  "dist_min":4, "biomas":[2,3,4,5,6,7]},
+    11: {"nome":"Arbusto",      "spawn_rate":0.04,  "dist_min":3, "biomas":[2,3,4,5,6,7]},
     12: {"nome":"Poça de Lava", "spawn_rate":0.008, "dist_min":9, "biomas":[6]},
 }
 
-def GeraGridObjetos(grid_biomas, SEED=None, spawn_obj_rate=0.15):
+def GeraGridObjetos(grid_biomas, SEED=None, spawn_obj_rate=0.1):
     """
     Gera grid de objetos.
     - Primeiro passa no sorteio global (spawn_obj_rate) por tile elegível.
