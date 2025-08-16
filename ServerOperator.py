@@ -25,7 +25,7 @@ def ativar_servidor():
     global V
     if not V.Ativo:
         V.db.create_all()
-        gerar_e_salvar_mapa(800,800)
+        gerar_e_salvar_mapa(900,900)
         V.Ativo = True
         return jsonify({"status": "ok", "mensagem": "Servidor ativado. Tabelas criadas."}), 200
     else:
