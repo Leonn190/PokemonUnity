@@ -634,7 +634,7 @@ OBJ_CONFIG = {
     12: {"nome":"Poça de Lava", "spawn_rate":0.008, "dist_min":9, "biomas":[6]},
 }
 
-def GeraGridObjetos(grid_biomas, SEED=None, spawn_obj_rate=0.15):
+def GeraGridObjetos(grid_biomas, SEED=None, spawn_obj_rate=0.12):
     """
     Versão otimizada (CPU/memória) mantendo a lógica original:
     - sorteio global com mitigação A/K;
@@ -761,7 +761,7 @@ def GeraGridObjetos(grid_biomas, SEED=None, spawn_obj_rate=0.15):
         dist_min = int(OBJ_CONFIG[oid]["dist_min"])
         biomas_ok = set(OBJ_CONFIG[oid]["biomas"])
 
-        tentativas = 2000
+        tentativas = 1000
         while faltam > 0 and tentativas > 0:
             tentativas -= 1
             x = random.randint(0, W - 1)
