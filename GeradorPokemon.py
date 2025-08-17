@@ -160,8 +160,8 @@ def GerarPokemon(players_ativos, pokemons_ativos):
             "loc": [X, Y],
             "id": ID,
             "extra": {
-                "TamanhoMirando": 50 - info_serializavel["Nivel"] + random.randint(-6, 12),
-                "VelocidadeMirando": random.uniform(1,4.5),
+                "TamanhoMirando": 50 - info_serializavel["Nivel"] + random.randint(-10, 10),
+                "VelocidadeMirando": max(1.6, info_serializavel["IV"] / 10 + random.randint(0, int(max(1, info_serializavel["Vel"]) / 10)) + 1),
                 "Dificuldade": info_serializavel["Total"] * info_serializavel["Nivel"] / 100 + random.randint(10, 30) + int(info_serializavel.get("Estagio", 0)) * 4,
                 "Frutas": 0
             }
