@@ -41,7 +41,7 @@ def GerarPokemon(players_ativos, pokemons_ativos):
     RAIO_VISAO = 18
     MIN_DIST_POKES = 8
     MAX_TENTATIVAS_POS = 20
-    LIMITE_POKES_ANEL = 15
+    LIMITE_POKES_ANEL = 12
 
     locs_players = [(data["Loc"][0], data["Loc"][1]) for _, data in players_ativos.items()]
 
@@ -162,8 +162,8 @@ def GerarPokemon(players_ativos, pokemons_ativos):
             "extra": {
                 "TamanhoMirando": 50 - info_serializavel["Nivel"] + random.randint(-10, 10),
                 "VelocidadeMirando": max(1.6, info_serializavel["IV"] / 10 + random.randint(0, int(max(1, info_serializavel["Vel"]) / 10)) + 1),
-                "Dificuldade": info_serializavel["Total"] * info_serializavel["Nivel"] / 100 + random.randint(10, 30) + int(info_serializavel.get("Estagio", 0)) * 4,
-                "Frutas": 0
+                "Dificuldade": info_serializavel["Total"] * info_serializavel["Nivel"] / 90 + random.randint(10, 30) + int(info_serializavel.get("Estagio", 0)) * 4,
+                "Frutas": []
             }
         }
 
