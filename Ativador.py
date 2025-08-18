@@ -30,23 +30,23 @@ def VerificarServer():
     if V.PokemonsAtivos and random.randint(0, 10) > 2:
         if random.randint(30, 100) < len(V.PokemonsAtivos):
             idx = random.randint(0, len(V.PokemonsAtivos) - 1)
-            V.PokemonsAtivos[idx]["Fugiu"] = V.PokemonsAtivos[idx].get("Fugiu", 1)
+            V.PokemonsAtivos[idx]["extra"]["Fugiu"] = V.PokemonsAtivos[idx]["extra"].get("Fugiu", 1)
 
     # 3) Incrementar contadores de Fugiu/Capturado e remover ao atingir 20
     novos_pokes = []
     for poke in V.PokemonsAtivos:
         if not poke:
             continue
-        fugiu = poke.get("Fugiu", 0)
-        capt = poke.get("Capturado", 0)
+        fugiu = poke["extra"].get("Fugiu", 0)
+        capt = poke["extra"].get("Capturado", 0)
         if fugiu or capt:
             # incrementa 1 por verificação de server
             if fugiu:
-                poke["Fugiu"] = fugiu + 1
+                poke["extra"]["Fugiu"] = fugiu + 1
             if capt:
-                poke["Capturado"] = capt + 1
+                poke["extra"]["Capturado"] = capt + 1
             # remove se atingir 20
-            if poke.get("Fugiu", 0) >= 30 or poke.get("Capturado", 0) >= 30:
+            if poke["extra"].get("Fugiu", 0) >= 30 or poke["extra"].get("Capturado", 0) >= 30:
                 continue  # não mantém
         novos_pokes.append(poke)
     V.PokemonsAtivos = novos_pokes

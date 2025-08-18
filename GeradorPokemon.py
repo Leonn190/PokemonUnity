@@ -41,7 +41,7 @@ def GerarPokemon(players_ativos, pokemons_ativos):
     RAIO_VISAO = 18
     MIN_DIST_POKES = 8
     MAX_TENTATIVAS_POS = 20
-    LIMITE_POKES_ANEL = 12
+    LIMITE_POKES_ANEL = 10
 
     locs_players = [(data["Loc"][0], data["Loc"][1]) for _, data in players_ativos.items()]
 
@@ -161,7 +161,7 @@ def GerarPokemon(players_ativos, pokemons_ativos):
             "id": ID,
             "extra": {
                 "TamanhoMirando": 50 - info_serializavel["Nivel"] + random.randint(-10, 10),
-                "VelocidadeMirando": max(1.6, info_serializavel["IV"] / 10 + random.randint(0, int(max(1, info_serializavel["Vel"]) / 10)) + 1),
+                "VelocidadeMirando": max(1.6, info_serializavel["IV"] + random.randint(0, int(max(1, info_serializavel["Vel"])))),
                 "Dificuldade": info_serializavel["Total"] * info_serializavel["Nivel"] / 90 + random.randint(10, 30) + int(info_serializavel.get("Estagio", 0)) * 4,
                 "Frutas": []
             }
@@ -183,7 +183,7 @@ def GerarBau(players_ativos, baus_ativos):
     ANEL_MAX = RAIO_VISAO * 2  # 36
     MAX_TENTATIVAS_POS = 20
     MIN_DIST_BAU = 15
-    LIMITE_BAUS_ANEL = 5  # <- ajuste aqui se quiser outro teto por anel
+    LIMITE_BAUS_ANEL = 4  # <- ajuste aqui se quiser outro teto por anel
 
     # distribuição cumulativa (1..6)
     raridades = [
