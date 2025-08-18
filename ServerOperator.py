@@ -20,16 +20,31 @@ def verificar_operador():
         return jsonify({"operador": False}), 201
 
 
-@Operator_bp.route('/ativar-servidor', methods=['GET'])
+@Operator_bp.route('/ativar-servidor', methods=['POST'])
 def ativar_servidor():
     global V
     if not V.Ativo:
         V.db.create_all()
-        gerar_e_salvar_mapa(900,900)
+
+        dados = request.get_json() or {}
+        seed = dados.get("seed")
+
+        # se seed não vier, você pode gerar uma aleatória ou retornar erro
+        if seed is None:
+            import random
+            seed = random.randint(0, 999999)
+
+        gerar_e_salvar_mapa(900, 900, seed)
         V.Ativo = True
-        return jsonify({"status": "ok", "mensagem": "Servidor ativado. Tabelas criadas."}), 200
+        return jsonify({
+            "status": "ok",
+            "mensagem": f"Servidor ativado. Tabelas criadas com seed {seed}."
+        }), 200
     else:
-        return jsonify({"status": "ok", "mensagem": "Servidor já estava ativo."}), 201
+        return jsonify({
+            "status": "ok",
+            "mensagem": "Servidor já estava ativo."
+        }), 201
 
 @Operator_bp.route('/ligar-desligar', methods=['POST'])
 def ligar_desligar():
