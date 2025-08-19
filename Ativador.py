@@ -23,12 +23,12 @@ def VerificarServer():
     - Remove baús que não estejam no raio de visão (18) de nenhum player
     """
     # 1) Geração de novos pokémons (usa a função já criada)
-    if len(V.PokemonsAtivos) < 60:
+    if len(V.PokemonsAtivos) < 80:
         GerarPokemon(V.PlayersAtivos, V.PokemonsAtivos)
 
     # 2) Chance de marcar alguém como 'Fugiu'
     if V.PokemonsAtivos and random.randint(0, 10) > 2:
-        if random.randint(30, 100) < len(V.PokemonsAtivos):
+        if random.randint(35, 80) < len(V.PokemonsAtivos):
             idx = random.randint(0, len(V.PokemonsAtivos) - 1)
             V.PokemonsAtivos[idx]["extra"]["Fugiu"] = V.PokemonsAtivos[idx]["extra"].get("Fugiu", 1)
 
