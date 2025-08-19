@@ -12,8 +12,7 @@ CAMPOS_POKEMON = [
     "Poder R1", "Poder R2", "Poder R3",
     "Tipo1", "%1", "Tipo2", "%2", "Tipo3", "%3",
     "Altura", "Peso", "Raridade", "Estagio", "FF", "Code",
-    "Nivel",
-    "IV",
+    "Nivel", "Linhagem","IV",
     "IV_Vida", "IV_Atk", "IV_Def", "IV_SpA", "IV_SpD", "IV_Vel",
     "IV_Mag", "IV_Per", "IV_Ene", "IV_EnR", "IV_CrD", "IV_CrC", "ID"
 ]
@@ -99,11 +98,11 @@ def GerarPokemon(players_ativos, pokemons_ativos):
 
         # --- gerar atributos, IVs e extras ---
         info_serializavel = info.copy()
-        info_serializavel["Nivel"] = int(random.betavariate(2, 5) * 50)
+        info_serializavel["Nivel"] = int(random.betavariate(2, 5) * 60)
 
-        info_serializavel["%1"] = max(0, info_serializavel["%1"] - int(random.betavariate(2, 4) * 70))
-        info_serializavel["%2"] = max(0, info_serializavel["%2"] - int(random.betavariate(2, 4) * 70))
-        info_serializavel["%3"] = max(0, info_serializavel["%3"] - int(random.betavariate(2, 4) * 70))
+        info_serializavel["%1"] = max(0, info_serializavel["%1"] - int(random.betavariate(2, 4) * 95))
+        info_serializavel["%2"] = max(0, info_serializavel["%2"] - int(random.betavariate(2, 4) * 85))
+        info_serializavel["%3"] = max(0, info_serializavel["%3"] - int(random.betavariate(2, 4) * 75))
 
         P = {0: 1.2, 1: 1.05, 2: 0.9, 3: 0.75}.get(int(info_serializavel.get("Estagio", 0)), 1)
 
