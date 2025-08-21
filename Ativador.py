@@ -168,7 +168,8 @@ def pegar_mapa():
     
     return jsonify({
         'biomas': json.loads(mapa.biomas_json),
-        'objetos': json.loads(mapa.objetos_json)
+        'objetos': json.loads(mapa.objetos_json),
+        'blocos': json.loads(mapa.blocos_json)
     }), 200
 
 @pokemons_bp.route('/remover-bau', methods=['POST'])

@@ -23,28 +23,55 @@ def verificar_operador():
 @Operator_bp.route('/ativar-servidor', methods=['POST'])
 def ativar_servidor():
     global V
-    if not V.Ativo:
+
+    dados = request.get_json(silent=True) or {}
+    seed = dados.get("seed")
+
+    # Esperamos {"grids": {"blocos":[...], "biomas":[...], "objetos":[...]}}
+    grids = dados.get("grids") or {}
+    grid_blocos  = grids.get("blocos")
+    grid_biomas  = grids.get("biomas")
+    grid_objetos = grids.get("objetos")
+
+    # Validação mínima
+    if not isinstance(grid_biomas, list) or not isinstance(grid_objetos, list):
+        return jsonify({
+            "status": "erro",
+            "mensagem": "Payload inválido: grids 'biomas' e 'objetos' são obrigatórias."
+        }), 400
+
+    # Cria tabelas na 1ª vez
+    if not getattr(V, "Ativo", False):
         V.db.create_all()
 
-        dados = request.get_json() or {}
-        seed = dados.get("seed")
+    # Serializa como strings JSON compactas
+    biomas_json  = json.dumps(grid_biomas,  separators=(',', ':'))
+    objetos_json = json.dumps(grid_objetos, separators=(',', ':'))
+    blocos_json  = json.dumps(grid_blocos,  separators=(',', ':')) if grid_blocos is not None else None
 
-        # se seed não vier, você pode gerar uma aleatória ou retornar erro
-        if seed is None:
-            import random
-            seed = random.randint(0, 999999)
+    # Limpa mapas anteriores
+    V.db.session.query(Mapa).delete()
 
-        gerar_e_salvar_mapa(900, 900, seed)
-        V.Ativo = True
-        return jsonify({
-            "status": "ok",
-            "mensagem": f"Servidor ativado. Tabelas criadas com seed {seed}."
-        }), 200
-    else:
-        return jsonify({
-            "status": "ok",
-            "mensagem": "Servidor já estava ativo."
-        }), 201
+    # Cria novo registro
+    novo_mapa = Mapa(biomas_json=biomas_json, objetos_json=objetos_json)
+
+    # Preenche campos extras se existirem no modelo
+    if blocos_json is not None and hasattr(Mapa, "blocos_json"):
+        novo_mapa.blocos_json = blocos_json
+    if seed is not None and hasattr(Mapa, "seed"):
+        novo_mapa.seed = seed
+
+    V.db.session.add(novo_mapa)
+    V.db.session.commit()
+
+    # Marca servidor “ativo” (sem regenerar no backend)
+    V.Ativo = True
+
+    return jsonify({
+        "status": "ok",
+        "mensagem": "Servidor ativado. Mapa recebido e salvo.",
+        "seed": seed
+    }), 200
 
 @Operator_bp.route('/ligar-desligar', methods=['POST'])
 def ligar_desligar():
