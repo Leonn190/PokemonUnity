@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from CriaMapa import gerar_e_salvar_mapa, Mapa
+from CriaMapa import Mapa
 from sqlalchemy import inspect
 import Variaveis as V
 import random
