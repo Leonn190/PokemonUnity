@@ -108,9 +108,11 @@ def Verificar():
             "Nome": dados["Nome"],
             "Skin": dados["Skin"],
             "Nivel": dados["Nivel"],
+            "Velocidade": dados["Velocidade"],
             "Loc": dados["Loc"],
             "Selecionado": dados["Selecionado"],
-            "Angulo": dados["Angulo"]
+            "Angulo": dados["Angulo"],
+            "ID": dados["ID"]
         }
     })
 
