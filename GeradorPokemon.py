@@ -58,7 +58,7 @@ def GerarPokemon(players_ativos, pokemons_ativos):
             continue  # não gera mais para este player
 
         # --- sorteia Pokémon válido pela Dex / raridade ---
-        code = random.randint(1, 1100)
+        code = random.randint(1, 262)
         pokemon = df[df["Code"] == code]
         if pokemon.empty:
             continue
