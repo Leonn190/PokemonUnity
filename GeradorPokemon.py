@@ -100,11 +100,11 @@ def GerarPokemon(players_ativos, pokemons_ativos):
         info_serializavel = info.copy()
         info_serializavel["Nivel"] = int(random.betavariate(2, 5) * 60)
 
-        info_serializavel["%1"] = max(0, info_serializavel["%1"] - int(random.betavariate(2, 4) * 95))
-        info_serializavel["%2"] = max(0, info_serializavel["%2"] - int(random.betavariate(2, 4) * 85))
-        info_serializavel["%3"] = max(0, info_serializavel["%3"] - int(random.betavariate(2, 4) * 75))
+        info_serializavel["%1"] = min(100,max(0, info_serializavel["%1"] - random.randint(-30,20)))
+        info_serializavel["%2"] = min(100,max(0, info_serializavel["%2"] - random.randint(-25,25)))
+        info_serializavel["%3"] = min(100,max(0, info_serializavel["%3"] - random.randint(-20,30)))
 
-        P = {0: 1.2, 1: 1.05, 2: 0.9, 3: 0.75}.get(int(info_serializavel.get("Estagio", 0)), 1)
+        P = {0: 1.25, 1: 1.05, 2: 0.9, 3: 0.8}.get(int(info_serializavel.get("Estagio", 0)), 1)
 
         def gerar_valor(base, fator_min, fator_max, Pescala):
             vmin = int(base * fator_min)
@@ -126,6 +126,10 @@ def GerarPokemon(players_ativos, pokemons_ativos):
             ivs.append(iv)
 
         info_serializavel["IV"] = round(sum(ivs) / len(ivs), 2)
+
+        Gen = (info_serializavel["IV_Vida"] + info_serializavel["IV_Def"] - (info_serializavel["IV_Vel"] * 1.5) - (info_serializavel["IV_CrC"] * 0.5)) / 100
+        info_serializavel["Peso"] *= Gen
+        info_serializavel["Altura"] *= Gen
 
         soma_atributos = sum([
             info_serializavel["Atk"],
@@ -149,7 +153,7 @@ def GerarPokemon(players_ativos, pokemons_ativos):
         )
         info_serializavel["Total"] = int(total)
 
-        ID = f"{info_serializavel['Nome']}{random.randint(1, 5000)}"
+        ID = f"{info_serializavel['Nome']}{random.randint(1, 10000)}"
         info_serializavel["ID"] = ID
 
         string_comprimida = CompactarPokemon(info_serializavel)
