@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from GeradorPokemon import GerarPokemon, GerarBau
 import random
 import math
@@ -94,77 +94,136 @@ def VerificarServer():
             V.BausAtivos.pop(bid, None)
 
 @pokemons_bp.route('/Verificar', methods=['POST'])
-def Verificar():
-    data = request.get_json()
-    raio = data["Raio"]
-    posX = data["X"]
-    posY = data["Y"]
-    code = str(data["Code"])
-    dados = data["Dados"]
+@pokemons_bp.route('/verificar', methods=['POST'])  # aceita minúsculo também
+def verificar():
+    data = request.get_json(silent=True)
+    if not data:
+        current_app.logger.warning("Verificar: JSON ausente ou inválido")
+        return jsonify({"error": "JSON inválido"}), 400
 
-    # --- Atualiza dados do jogador ---
-    if code not in V.PlayersAtivos:
-        return '', 204
-    V.PlayersAtivos[code].update({"Loc": [posX, posY]})
-    V.PlayersAtivos[code].setdefault("Conta", {})
-    V.PlayersAtivos[code]["Conta"].update({
-        "DadosPassageiros": {
-            "Nome": dados["Nome"],
-            "Skin": dados["Skin"],
-            "Nivel": dados["Nivel"],
-            "Velocidade": dados["Velocidade"],
-            "Loc": dados["Loc"],
-            "Selecionado": dados["Selecionado"],
-            "Angulo": dados["Angulo"],
-            "ID": dados["ID"]
+    try:
+        # ---- leitura segura dos campos obrigatórios ----
+        raio = float(data.get("Raio", 0))
+        posX = float(data.get("X", 0))
+        posY = float(data.get("Y", 0))
+        code = str(data.get("Code", "")).strip()
+        dados = data.get("Dados") or {}
+
+        if not code:
+            return jsonify({"error": "Code ausente"}), 400
+
+        # --- Atualiza dados do jogador ---
+        if code not in V.PlayersAtivos:
+            # 204: conhecido, mas não há conteúdo (player não está ativo)
+            return '', 204
+
+        # garante dicts
+        player = V.PlayersAtivos.setdefault(code, {})
+        player["Loc"] = [posX, posY]
+        conta = player.setdefault("Conta", {})
+        conta["DadosPassageiros"] = {
+            "Nome":        dados.get("Nome"),
+            "Skin":        dados.get("Skin"),
+            "Nivel":       dados.get("Nivel"),
+            "Velocidade":  dados.get("Velocidade"),
+            "Loc":         dados.get("Loc"),
+            "Selecionado": dados.get("Selecionado"),
+            "Angulo":      dados.get("Angulo"),
+            "ID":          dados.get("ID"),
         }
-    })
 
-    # --- Listas próximas ---
-    # Pokémons
-    pokemons_proximos = []
-    for pokemon in V.PokemonsAtivos:
-        if not pokemon or not pokemon.get("loc"):
-            continue
-        px, py = pokemon["loc"]
-        if math.dist((px, py), (posX, posY)) <= raio:
-            pokemons_proximos.append(pokemon)
+        # --- Listas próximas ---
+        pokemons_proximos = []
+        for pokemon in V.PokemonsAtivos:
+            if not isinstance(pokemon, dict):
+                continue
+            loc = pokemon.get("loc") or pokemon.get("Loc")
+            if (isinstance(loc, (list, tuple)) and len(loc) == 2):
+                px, py = loc
+                try:
+                    if math.dist((float(px), float(py)), (posX, posY)) <= raio:
+                        # filtra só campos serializáveis/necessários
+                        pokemons_proximos.append({
+                            "id": pokemon.get("id") or pokemon.get("ID"),
+                            "X": float(px), "Y": float(py),
+                            "tipo": pokemon.get("tipo"),
+                            "nivel": pokemon.get("nivel"),
+                        })
+                except Exception:
+                    continue
 
-    # Players (exceto o próprio)
-    players_proximos = []
-    for pid, player in V.PlayersAtivos.items():
-        if not player or "Loc" not in player or pid == code:
-            continue
-        px, py = player["Loc"]
-        if math.dist((px, py), (posX, posY)) <= raio:
-            dados_passageiros = player.get("Conta", {}).get("DadosPassageiros")
-            if dados_passageiros:
-                players_proximos.append(dados_passageiros)
+        players_proximos = []
+        for pid, p in (V.PlayersAtivos or {}).items():
+            if not isinstance(p, dict) or pid == code:
+                continue
+            loc = p.get("Loc")
+            if (isinstance(loc, (list, tuple)) and len(loc) == 2):
+                px, py = loc
+                try:
+                    if math.dist((float(px), float(py)), (posX, posY)) <= raio:
+                        dp = (p.get("Conta") or {}).get("DadosPassageiros") or {}
+                        players_proximos.append({
+                            "Nome": dp.get("Nome"),
+                            "Skin": dp.get("Skin"),
+                            "Nivel": dp.get("Nivel"),
+                            "Velocidade": dp.get("Velocidade"),
+                            "Loc": dp.get("Loc"),
+                            "Selecionado": dp.get("Selecionado"),
+                            "Angulo": dp.get("Angulo"),
+                            "ID": dp.get("ID"),
+                        })
+                except Exception:
+                    continue
 
-    # Baús próximos
-    baus_proximos = []
-    for bau_id, bau_data in V.BausAtivos.items():
-        bx, by, raridade = bau_data
-        if math.dist((bx, by), (posX, posY)) <= raio:
-            baus_proximos.append({
-                "ID": bau_id,
-                "X": bx,
-                "Y": by,
-                "Raridade": raridade
-            })
+        baus_proximos = []
+        for bau_id, bau_data in (V.BausAtivos or {}).items():
+            try:
+                if isinstance(bau_data, (list, tuple)) and len(bau_data) >= 3:
+                    bx, by, raridade = bau_data[:3]
+                elif isinstance(bau_data, dict):
+                    bx, by, raridade = bau_data.get("X"), bau_data.get("Y"), bau_data.get("Raridade")
+                else:
+                    continue
+                if math.dist((float(bx), float(by)), (posX, posY)) <= raio:
+                    baus_proximos.append({
+                        "ID": bau_id,
+                        "X": float(bx),
+                        "Y": float(by),
+                        "Raridade": raridade
+                    })
+            except Exception:
+                continue
 
-    # --- Apenas o último player chama o VerificarServer (if/else simples) ---
-    # último = maior Code; Codes são strings numéricas
-    # Pega a última chave do dicionário
-    ultima_chave = next(reversed(V.PlayersAtivos))
-    if ultima_chave == code:
-        VerificarServer()
+        # --- Só o "maior" Code chama o VerificarServer ---
+        try:
+            # se as chaves forem numéricas em string:
+            keys = list(V.PlayersAtivos.keys())
+            if all(k.isdigit() for k in keys):
+                maior_code = max(keys, key=lambda k: int(k))
+            else:
+                # fallback: última inserida
+                maior_code = next(reversed(V.PlayersAtivos))
+            if maior_code == code:
+                try:
+                    VerificarServer()
+                except Exception as e:
+                    current_app.logger.exception("Erro no VerificarServer: %s", e)
+                    # não derruba a rota principal
+        except StopIteration:
+            pass
 
-    return jsonify({
-        "pokemons": pokemons_proximos,
-        "players": players_proximos,
-        "baus": baus_proximos
-    })
+        return jsonify({
+            "pokemons": pokemons_proximos,
+            "players": players_proximos,
+            "baus": baus_proximos
+        }), 200
+
+    except KeyError as e:
+        current_app.logger.exception("Campo obrigatório faltando: %s", e)
+        return jsonify({"error": f"Campo obrigatório faltando: {e}"}), 400
+    except Exception as e:
+        current_app.logger.exception("Falha em /verificar: %s", e)
+        return jsonify({"error": "Erro interno"}), 500
 
 @pokemons_bp.route('/Mapa', methods=['GET'])
 def pegar_mapa():
