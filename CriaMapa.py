@@ -12,5 +12,5 @@ class Mapa(V.db.Model):
 
 class ServerConfig(V.db.Model):
     __tablename__ = "config"
-    id = Column(Integer, primary_key=True)  # <-- ESSENCIAL
-    dificuldade = Column(int, nullable=False)
+    id = V.db.Column(V.db.Integer, primary_key=True)  # <- certo
+    dificuldade = V.db.Column(V.db.Integer, nullable=False)
