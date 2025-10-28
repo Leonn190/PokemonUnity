@@ -55,16 +55,18 @@ def VerificarServer():
     for poke in V.PokemonsAtivos:
         if not poke or not poke.get("loc"):
             continue
-        if poke["extra"].get["Irritado"]:
-            chanc = 0.14
-        else:
-            chanc = 0.07
+
+        extra = poke.get("extra") or {}
+        irritado = bool(extra.get("Irritado", False))
+
+        chanc = 0.14 if irritado else 0.07
+
         if random.random() < chanc:
-            # movimento no eixo X
+            # eixo X
             if random.choice([True, False]):
                 step_x = random.randint(1, 3) * random.choice([-1, 1])
                 poke["loc"][0] += step_x
-            # movimento no eixo Y
+            # eixo Y
             if random.choice([True, False]):
                 step_y = random.randint(1, 3) * random.choice([-1, 1])
                 poke["loc"][1] += step_y
