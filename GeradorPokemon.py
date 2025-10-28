@@ -127,11 +127,11 @@ def GerarPokemon(players_ativos, pokemons_ativos):
 
         info_serializavel["IV"] = round(sum(ivs) / len(ivs), 2)
 
-        Gen = (info_serializavel["IV_Vida"] + info_serializavel["IV_Def"] - (info_serializavel["IV_Vel"] * 1.5) - (info_serializavel["IV_CrC"] * 0.5)) / 100
-        info_serializavel["Peso"] = float(info_serializavel["Peso"]) * Gen
-        info_serializavel["Altura"] = float(info_serializavel["Altura"]) * Gen
-        round(info_serializavel["Peso"])
-        round(info_serializavel["Altura"])
+        # Gen = (info_serializavel["IV_Vida"] + info_serializavel["IV_Def"] - (info_serializavel["IV_Vel"] * 1.5) - (info_serializavel["IV_CrC"] * 0.5)) / 100
+        # info_serializavel["Peso"] = float(info_serializavel["Peso"]) * Gen
+        # info_serializavel["Altura"] = float(info_serializavel["Altura"]) * Gen
+        # round(info_serializavel["Peso"])
+        # round(info_serializavel["Altura"])
 
         soma_atributos = sum([
             info_serializavel["Atk"],
